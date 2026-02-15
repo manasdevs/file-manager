@@ -17,11 +17,16 @@ This is a monorepo containing the library and example applications:
 ```
 manas-fm/
 ├── packages/
-│   └── manas-fm/        # The npm package
-│       ├── src/         # Source code
+│   ├── manas-fm/        # The core npm package
+│   │   ├── src/         # Source code
+│   │   ├── dist/        # Built output (generated)
+│   │   ├── package.json
+│   │   └── README.md    # Full package documentation
+│   └── cli/             # CLI tool (add-manas-fm)
+│       ├── src/         # CLI source code
 │       ├── dist/        # Built output (generated)
 │       ├── package.json
-│       └── README.md    # Full package documentation
+│       └── README.md    # CLI documentation
 ├── example/             # Example Next.js application
 └── package.json         # Workspace root
 ```
@@ -50,6 +55,128 @@ const result = await fm.upload({
   filename: 'document.pdf',
   path: 'uploads',
 });
+```
+
+## CLI Tool
+
+manas-fm comes with a beautiful, interactive CLI tool to help you quickly set up file management in your Next.js or Node.js projects.
+
+### ✨ Features
+
+- 🎨 **Beautiful Interface** - Enhanced with ansi-styles for a premium terminal experience
+- 🔍 **Auto-Detection** - Automatically detects your project type, framework, and configuration
+- ⚙️ **Interactive Setup** - Guided prompts for easy configuration
+- 📦 **Complete Integration** - Generates all necessary files and configurations
+- 🎯 **Framework Support** - Optimized for Next.js App Router with API routes and Server Actions
+
+### Quick Setup
+
+Run the CLI in your project directory:
+
+```bash
+npx add-manas-fm@latest
+```
+
+The CLI will:
+1. 📦 Detect your project framework and structure
+2. ⚙️ Guide you through configuration options
+3. 📥 Install the manas-fm package
+4. 📁 Create storage directories with proper structure
+5. 🔧 Generate the file manager configuration
+6. 🚀 Set up API routes and/or Server Actions (Next.js)
+7. 📝 Update your .gitignore
+
+### CLI Commands
+
+```bash
+# Run interactive setup (default)
+npx add-manas-fm@latest init
+
+# Show help
+npx add-manas-fm@latest --help
+
+# Show version
+npx add-manas-fm@latest --version
+```
+
+### What Gets Generated
+
+#### For Next.js Projects:
+
+- **Configuration**: `src/lib/file-manager.ts` (or `lib/file-manager.ts`)
+- **API Route**: `src/app/api/files/[...all]/route.ts` (optional)
+- **Server Actions**: `src/app/actions.ts` (optional)
+- **Storage**: Configured directory structure based on your slugs
+
+#### For Node.js Projects:
+
+- **Configuration**: `lib/file-manager.js` or `.ts`
+- **Storage**: Configured directory structure
+
+### Configuration Options
+
+During setup, you'll be asked about:
+
+- **Storage Path**: Where to store uploaded files (default: `./storage`)
+- **Logging**: Enable/disable logging and set log level
+- **Slugs**: Define file categories with:
+  - Custom paths
+  - Allowed file types
+  - Size limits
+  - Compression settings
+  - Retention policies
+- **Next.js Specific**:
+  - Generate API route handlers
+  - Generate Server Actions
+
+### Example CLI Output
+
+```
+  ╭─────────────────────────────────────────╮
+  │  ✨ manas-fm File Manager Setup         │
+  ╰─────────────────────────────────────────╯
+
+  ━━━ 📦 Project Detection ━━━
+
+  ▸ Detecting project...
+  ℹ  Package manager: pnpm
+  ℹ  Detected: Next.js project
+  ℹ  TypeScript: ✓
+
+  ━━━ ⚙️  Configuration ━━━
+
+  ? Where should files be stored? ./storage
+  ? Enable logging? yes
+  ? Log level: info
+
+  ━━━ 📥 Installation ━━━
+
+  ▸ Installing manas-fm...
+  ✓ Installed manas-fm
+
+  ━━━ 📁 Storage Setup ━━━
+
+  ▸ Creating storage directory...
+  ✓ Storage directory: ./storage
+
+  ━━━ 🔧 Code Generation ━━━
+
+  ▸ Generating file manager configuration...
+
+  ┌────────────────────────────────────┐
+  │  ✨ Setup Complete!                │
+  └────────────────────────────────────┘
+
+  🚀 Next Steps
+  ────────────────────────────────────
+  
+  1. Import and use the file manager:
+     import { getFileManager } from "@/lib/file-manager";
+     const fm = await getFileManager();
+  
+  2. Available slugs: images, documents, uploads
+  
+  3. Read the docs: https://github.com/manasdevs/file-manager#readme
 ```
 
 ## Documentation
