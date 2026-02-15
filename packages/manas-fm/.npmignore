@@ -1,0 +1,18 @@
+# Development files
+src/
+*.test.ts
+*.spec.ts
+__tests__/
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+.eslintrc.cjs
+
+# Development folders
+example/
+.vscode/
+node_modules/
+
+# Source control
+.git/
+.gitignore
