@@ -3,7 +3,7 @@
 A powerful, configuration-first file management package for Node.js and Next.js applications.
 
 [![npm version](https://img.shields.io/npm/v/manas-fm.svg)](https://www.npmjs.com/package/manas-fm)
-[![CI](https://github.com/manasdevs/manas-fm/actions/workflows/ci.yml/badge.svg)](https://github.com/manasdevs/manas-fm/actions/workflows/ci.yml)
+[![CI](https://github.com/manasdevs/file-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/manasdevs/file-manager/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
 ## Overview
@@ -69,8 +69,8 @@ For complete API documentation, configuration options, and guides, see:
 
 ```bash
 # Clone the repository
-git clone https://github.com/manasdevs/manas-fm.git
-cd manas-fm
+git clone https://github.com/manasdevs/file-manager.git
+cd file-manager
 
 # Install dependencies
 pnpm install
@@ -190,6 +190,6 @@ MIT © [M Anas Latif](https://m.anaslatif.dev)
 
 ## Support
 
-- [GitHub Issues](https://github.com/manasdevs/manas-fm/issues)
+- [GitHub Issues](https://github.com/manasdevs/file-manager/issues)
 - [Full Documentation](./packages/manas-fm/README.md)
 - [Example Application](./example/)

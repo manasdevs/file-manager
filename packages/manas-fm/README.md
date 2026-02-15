@@ -4,7 +4,7 @@ A powerful, configuration-first file management package for Node.js and Next.js 
 
 [![npm version](https://img.shields.io/npm/v/manas-fm.svg)](https://www.npmjs.com/package/manas-fm)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-[![CI](https://github.com/manasdevs/manas-fm/actions/workflows/ci.yml/badge.svg)](https://github.com/manasdevs/manas-fm/actions/workflows/ci.yml)
+[![CI](https://github.com/manasdevs/file-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/manasdevs/file-manager/actions/workflows/ci.yml)
 
 ## Features
 
@@ -444,8 +444,8 @@ To run the example:
 
 ```bash
 # Clone the repository
-git clone https://github.com/manasdevs/manas-fm.git
-cd manas-fm
+git clone https://github.com/manasdevs/file-manager.git
+cd file-manager
 
 # Install dependencies
 pnpm install
@@ -468,8 +468,8 @@ pnpm example:dev
 
 ```bash
 # Clone the repository
-git clone https://github.com/manasdevs/manas-fm.git
-cd manas-fm
+git clone https://github.com/manasdevs/file-manager.git
+cd file-manager
 
 # Install dependencies
 pnpm install
@@ -557,6 +557,6 @@ MIT © [M Anas Latif](https://m.anaslatif.dev)
 ## Support
 
 If you encounter any issues or have questions:
-- Open an issue: [GitHub Issues](https://github.com/manasdevs/manas-fm/issues)
+- Open an issue: [GitHub Issues](https://github.com/manasdevs/file-manager/issues)
 - Check the documentation above
 - Review the [example application](./example/)
