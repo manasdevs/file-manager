@@ -1,0 +1,81 @@
+{
+  "name": "manas-fm",
+  "version": "1.0.2",
+  "description": "A file management package by M Anas for Node.js and Next.js applications",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
+    }
+  },
+  "author": {
+    "name": "M Anas Latif",
+    "url": "https://m.anaslatif.dev",
+    "email": "contact@anaslatif.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/manasdevs/manas-fm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/manasdevs/manas-fm/issues"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ --ext .ts",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "pnpm run lint && pnpm run test && pnpm run build"
+  },
+  "keywords": [
+    "file-management",
+    "upload",
+    "download",
+    "nextjs",
+    "typescript",
+    "file-system",
+    "versioning",
+    "compression"
+  ],
+  "license": "MIT",
+  "peerDependencies": {
+    "sharp": ">=0.33.0"
+  },
+  "peerDependenciesMeta": {
+    "sharp": {
+      "optional": true
+    }
+  },
+  "dependencies": {
+    "archiver": "^7.0.0"
+  },
+  "devDependencies": {
+    "@types/archiver": "^6.0.0",
+    "@types/node": "^20.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.57.0",
+    "prettier": "^3.2.0",
+    "sharp": "^0.33.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0"
+  }
+}
