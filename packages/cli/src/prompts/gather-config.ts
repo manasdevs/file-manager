@@ -61,7 +61,9 @@ function onCancel() {
 }
 
 export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig> {
-  info(`Detected: ${bold(magenta(project.framework === "nextjs" ? "Next.js" : "Node.js"))} project`);
+  info(
+    `Detected: ${bold(magenta(project.framework === "nextjs" ? "Next.js" : "Node.js"))} project`,
+  );
   if (project.isTypeScript) info(`TypeScript: ${bold(magenta("✓"))}`);
   if (project.srcDir) info(`src/ directory: ${bold(magenta("✓"))}`);
   if (project.appRouter) info(`App Router: ${bold(magenta("✓"))}`);

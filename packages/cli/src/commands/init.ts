@@ -145,12 +145,24 @@ function printNextSteps(
     stepNum++;
 
     if (config.setupApiRoute) {
-      console.log(dim(`  ${stepNum}.`) + " " + bold("API routes are ready at") + " " + magenta("/api/files/*"));
+      console.log(
+        dim(`  ${stepNum}.`) +
+          " " +
+          bold("API routes are ready at") +
+          " " +
+          magenta("/api/files/*"),
+      );
       stepNum++;
     }
 
     if (config.setupServerActions) {
-      console.log(dim(`  ${stepNum}.`) + " " + bold("Server actions ready in") + " " + magenta("app/actions.ts"));
+      console.log(
+        dim(`  ${stepNum}.`) +
+          " " +
+          bold("Server actions ready in") +
+          " " +
+          magenta("app/actions.ts"),
+      );
       stepNum++;
     }
   } else {
@@ -162,14 +174,18 @@ function printNextSteps(
 
   console.log(
     dim(`  ${stepNum}.`) +
-      " " + bold("Available slugs:") + " " +
+      " " +
+      bold("Available slugs:") +
+      " " +
       config.slugs.map((s) => magenta(s.name)).join(dim(", ")),
   );
   stepNum++;
 
   console.log(
     dim(`  ${stepNum}.`) +
-      " " + bold("Read the docs:") + " " +
+      " " +
+      bold("Read the docs:") +
+      " " +
       underline("https://github.com/manasdevs/file-manager#readme"),
   );
   console.log();

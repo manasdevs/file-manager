@@ -39,7 +39,9 @@ function printHelp() {
   const { cyan, bold, dim, green, magenta } = getStyles();
   console.log();
   console.log(cyan("  ╭────────────────────────────────────────╮"));
-  console.log(cyan("  │") + "  " + bold(magenta("manas-fm CLI")) + " - Help           " + cyan("│"));
+  console.log(
+    cyan("  │") + "  " + bold(magenta("manas-fm CLI")) + " - Help           " + cyan("│"),
+  );
   console.log(cyan("  ╰────────────────────────────────────────╯"));
   console.log();
   console.log(bold("  Usage:"));

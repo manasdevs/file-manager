@@ -21,7 +21,15 @@ const style = {
 export function intro() {
   console.log();
   console.log(style.cyan("  ╭─────────────────────────────────────────╮"));
-  console.log(style.cyan("  │") + "  " + style.bold(style.magenta("✨ manas-fm")) + " " + style.dim("File Manager Setup") + "  " + style.cyan("│"));
+  console.log(
+    style.cyan("  │") +
+      "  " +
+      style.bold(style.magenta("✨ manas-fm")) +
+      " " +
+      style.dim("File Manager Setup") +
+      "  " +
+      style.cyan("│"),
+  );
   console.log(style.cyan("  ╰─────────────────────────────────────────╯"));
   console.log();
 }
@@ -29,7 +37,13 @@ export function intro() {
 export function outro() {
   console.log();
   console.log(style.green("  ┌────────────────────────────────────┐"));
-  console.log(style.green("  │") + "  " + style.bold(style.green("✨ Setup Complete!")) + "            " + style.green("│"));
+  console.log(
+    style.green("  │") +
+      "  " +
+      style.bold(style.green("✨ Setup Complete!")) +
+      "            " +
+      style.green("│"),
+  );
   console.log(style.green("  └────────────────────────────────────┘"));
   console.log();
 }
@@ -60,7 +74,11 @@ export function highlight(message: string) {
 
 export function section(title: string) {
   console.log();
-  console.log(style.bold(style.blue("  ━━━ ")) + style.bold(style.cyan(title)) + style.bold(style.blue(" ━━━")));
+  console.log(
+    style.bold(style.blue("  ━━━ ")) +
+      style.bold(style.cyan(title)) +
+      style.bold(style.blue(" ━━━")),
+  );
   console.log();
 }
 
