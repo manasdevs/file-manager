@@ -1,0 +1,21 @@
+{
+  "name": "manas-fm-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Monorepo for manas-fm file management package and examples",
+  "scripts": {
+    "build": "pnpm --filter manas-fm build",
+    "dev": "pnpm --filter manas-fm dev",
+    "test": "pnpm --filter manas-fm test",
+    "lint": "pnpm --filter manas-fm lint",
+    "typecheck": "pnpm --filter manas-fm typecheck",
+    "example:dev": "pnpm --filter manas-fm-example dev",
+    "example:build": "pnpm --filter manas-fm-example build"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild",
+      "sharp"
+    ]
+  }
+}
