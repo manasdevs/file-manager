@@ -2,7 +2,7 @@
   "name": "manas-fm-monorepo",
   "version": "1.0.0",
   "private": true,
-  "description": "Monorepo for manas-fm file management package and examples",
+  "description": "Monorepo for manas-fm file management package, cli and examples",
   "scripts": {
     "build": "pnpm --filter manas-fm build && pnpm --filter add-manas-fm build",
     "dev": "pnpm --filter manas-fm dev",
