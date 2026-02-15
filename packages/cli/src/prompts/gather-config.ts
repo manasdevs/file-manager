@@ -2,6 +2,10 @@ import prompts from "prompts";
 import type { SlugInput, UserConfig } from "../types.js";
 import type { ProjectInfo } from "../utils/detect-project.js";
 import { info, blank, step, warn } from "../utils/logger.js";
+import styles from "ansi-styles";
+
+const bold = (text: string) => `${styles.bold.open}${text}${styles.bold.close}`;
+const magenta = (text: string) => `${styles.magenta.open}${text}${styles.magenta.close}`;
 
 const COMMON_PRESETS: Record<string, Omit<SlugInput, "name">> = {
   images: {
@@ -57,10 +61,10 @@ function onCancel() {
 }
 
 export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig> {
-  info(`Detected: ${project.framework === "nextjs" ? "Next.js" : "Node.js"} project`);
-  if (project.isTypeScript) info("TypeScript detected");
-  if (project.srcDir) info("Using src/ directory");
-  if (project.appRouter) info("Next.js App Router detected");
+  info(`Detected: ${bold(magenta(project.framework === "nextjs" ? "Next.js" : "Node.js"))} project`);
+  if (project.isTypeScript) info(`TypeScript: ${bold(magenta("✓"))}`);
+  if (project.srcDir) info(`src/ directory: ${bold(magenta("✓"))}`);
+  if (project.appRouter) info(`App Router: ${bold(magenta("✓"))}`);
   blank();
 
   // ── Storage path ──

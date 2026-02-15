@@ -12,7 +12,7 @@ importers:
     dependencies:
       manas-fm:
         specifier: workspace:*
-        version: link:../packages/cli
+        version: link:../packages/manas-fm
       next:
         specifier: ^15.1.0
         version: 15.5.12(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -44,9 +44,9 @@ importers:
 
   packages/cli:
     dependencies:
-      picocolors:
-        specifier: ^1.1.1
-        version: 1.1.1
+      ansi-styles:
+        specifier: ^6.2.3
+        version: 6.2.3
       prompts:
         specifier: ^2.4.2
         version: 2.4.2
