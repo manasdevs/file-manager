@@ -25,10 +25,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/manasdevs/manas-fm.git"
+    "url": "https://github.com/manasdevs/file-manager.git"
   },
   "bugs": {
-    "url": "https://github.com/manasdevs/manas-fm/issues"
+    "url": "https://github.com/manasdevs/file-manager/issues"
   },
   "files": [
     "dist",
