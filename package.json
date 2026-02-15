@@ -4,11 +4,13 @@
   "private": true,
   "description": "Monorepo for manas-fm file management package and examples",
   "scripts": {
-    "build": "pnpm --filter manas-fm build",
+    "build": "pnpm --filter manas-fm build && pnpm --filter add-manas-fm build",
     "dev": "pnpm --filter manas-fm dev",
     "test": "pnpm --filter manas-fm test",
     "lint": "pnpm --filter manas-fm lint",
     "typecheck": "pnpm --filter manas-fm typecheck",
+    "cli:build": "pnpm --filter add-manas-fm build",
+    "cli:dev": "pnpm --filter add-manas-fm dev",
     "example:dev": "pnpm --filter manas-fm-example dev",
     "example:build": "pnpm --filter manas-fm-example build"
   },
