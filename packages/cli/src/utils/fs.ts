@@ -6,11 +6,7 @@ import { success, warn } from "./logger.js";
  * Write a file, creating directories as needed.
  * If file already exists, skip unless overwrite is true.
  */
-export function writeFileSafe(
-  filePath: string,
-  content: string,
-  overwrite = false,
-): boolean {
+export function writeFileSafe(filePath: string, content: string, overwrite = false): boolean {
   const dir = path.dirname(filePath);
   if (!fs.existsSync(dir)) {
     fs.mkdirSync(dir, { recursive: true });

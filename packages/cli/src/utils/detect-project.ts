@@ -25,17 +25,14 @@ export function detectProject(): ProjectInfo {
   const hasNext = "next" in allDeps;
   const framework: Framework = hasNext ? "nextjs" : "node";
 
-  const isTypeScript =
-    fs.existsSync(path.join(cwd, "tsconfig.json")) || "typescript" in allDeps;
+  const isTypeScript = fs.existsSync(path.join(cwd, "tsconfig.json")) || "typescript" in allDeps;
 
   const srcDir = fs.existsSync(path.join(cwd, "src"));
 
   // Detect App Router vs Pages Router for Next.js
   let appRouter = false;
   if (hasNext) {
-    const appDir = srcDir
-      ? path.join(cwd, "src", "app")
-      : path.join(cwd, "app");
+    const appDir = srcDir ? path.join(cwd, "src", "app") : path.join(cwd, "app");
     appRouter = fs.existsSync(appDir);
   }
 
