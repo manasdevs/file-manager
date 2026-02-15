@@ -1,0 +1,49 @@
+{
+  "name": "add-manas-fm",
+  "version": "1.0.0",
+  "description": "CLI to set up manas-fm file manager in your project",
+  "type": "module",
+  "bin": {
+    "add-manas-fm": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch"
+  },
+  "author": {
+    "name": "M Anas Latif",
+    "url": "https://m.anaslatif.dev",
+    "email": "contact@anaslatif.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/manasdevs/manas-fm.git",
+    "directory": "packages/cli"
+  },
+  "bugs": {
+    "url": "https://github.com/manasdevs/manas-fm/issues"
+  },
+  "keywords": [
+    "add-manas-fm",
+    "manas-fm",
+    "file-management",
+    "cli",
+    "setup"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "prompts": "^2.4.2",
+    "picocolors": "^1.1.1"
+  },
+  "devDependencies": {
+    "@types/prompts": "^2.4.9",
+    "@types/node": "^22.10.11",
+    "tsup": "^8.3.6",
+    "typescript": "^5.7.3"
+  }
+}
