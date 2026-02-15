@@ -3,7 +3,7 @@
 > A configuration-first file management library for Node.js and Next.js applications. Handles file uploads, downloads, versioning, compression, and more with a type-safe API.
 
 Package: `manas-fm` (v1.0.2)
-Repository: https://github.com/manasdevs/manas-fm
+Repository: https://github.com/manasdevs/file-manager
 License: MIT
 
 ## Overview

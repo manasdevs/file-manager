@@ -153,7 +153,7 @@ function printNextSteps(
 
   console.log(
     pc.dim(`  ${stepNum}.`) +
-      ` Read the docs: ${pc.underline("https://github.com/manasdevs/manas-fm#readme")}`,
+      ` Read the docs: ${pc.underline("https://github.com/manasdevs/file-manager#readme")}`,
   );
   console.log();
 }
