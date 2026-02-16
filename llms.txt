@@ -130,12 +130,28 @@ interface FileInput {
 }
 ```
 
+### UploadPhase
+Phases reported during upload progress:
+```typescript
+type UploadPhase = "validating" | "writing" | "zipping" | "compressing" | "saving-metadata" | "complete";
+```
+
+### UploadProgressEvent
+Progress event emitted during upload:
+```typescript
+interface UploadProgressEvent {
+  phase: UploadPhase;
+  percent: number;     // 0–100, monotonically increasing
+  message?: string;    // Human-readable description
+}
+```
+
 ## FileManager API
 
 All methods are on the object returned by `createFileManager()`.
 
 ### uploadFile(slug, file, options?) → Promise<UploadResult>
-Upload a file to a slug's storage directory.
+Upload a file to a slug's storage directory. Supports an `onProgress` callback for tracking server-side processing phases.
 ```typescript
 const result = await fm.uploadFile("images", {
   buffer: fileBuffer,
@@ -146,8 +162,20 @@ const result = await fm.uploadFile("images", {
   fileName: "custom-name.jpg",  // optional rename
   subPath: "avatars",           // optional subdirectory within slug
   overwrite: false,             // optional, default false
+  onProgress: (event) => {      // optional progress callback
+    console.log(`${event.phase}: ${event.percent}% — ${event.message}`);
+  },
 });
 // result: { success, filePath, fileName, slug, size, mimeType, createdAt, variants? }
+```
+
+Progress phases and approximate percentages (adjusted dynamically based on slug config):
+- `validating` — 10% — Validates MIME type and file size
+- `writing` — 40–80% — Writes file to disk (higher when zip/compression not active)
+- `zipping` — 60% — Creates zip archive (only if zip enabled)
+- `compressing` — 80% — Compresses image via sharp (only if compression enabled)
+- `saving-metadata` — 90–95% — Saves metadata index
+- `complete` — 100% — Upload finished
 ```
 
 ### downloadFile(identifier, options?) → Promise<DownloadResult>
@@ -310,6 +338,34 @@ export const POST = handler.POST;
 - `/api/files/duplicate` — JSON: `{ slug, name, targetSlug?, newName?, duplicateVariants? }`
 - `/api/files/restore` — JSON: `{ slug, name, versionId }`
 
+#### Streaming Upload Progress
+
+The `/api/files/upload` endpoint supports real-time progress streaming. Send the request with
+`Accept: text/event-stream` to receive NDJSON (newline-delimited JSON) progress events instead of
+a single JSON response. Without this header, the endpoint returns a standard JSON response (backwards compatible).
+
+**NDJSON events:**
+```
+{"type":"progress","phase":"validating","percent":10,"message":"Validating file..."}
+{"type":"progress","phase":"writing","percent":40,"message":"Writing file to disk..."}
+{"type":"progress","phase":"compressing","percent":80,"message":"Compressing image..."}
+{"type":"progress","phase":"saving-metadata","percent":95,"message":"Saving metadata..."}
+{"type":"progress","phase":"complete","percent":100,"message":"Upload complete"}
+{"type":"result","data":{"success":true,"filePath":"...","fileName":"...","slug":"images",...}}
+```
+
+On error: `{"type":"error","error":"message","status":400}`
+
+**Client-side usage with XHR (for upload + processing progress):**
+```typescript
+const xhr = new XMLHttpRequest();
+xhr.upload.onprogress = (e) => { /* network transfer progress (bytes sent) */ };
+xhr.onprogress = () => { /* parse xhr.responseText for NDJSON server progress */ };
+xhr.open("POST", "/api/files/upload");
+xhr.setRequestHeader("Accept", "text/event-stream");
+xhr.send(formData);
+```
+
 ### 3. Use in Server Actions
 
 ```typescript
@@ -368,7 +424,7 @@ The Next.js adapter automatically maps errors to HTTP status codes:
 
 Main entry point: `manas-fm`
 - `createFileManager` — factory function
-- All types: `ManasFmConfig`, `SlugConfig`, `FileManager`, `FileInput`, `UploadResult`, `DownloadResult`, `FileInfo`, `FileListItem`, `FolderListItem`, `VersionInfo`, `OperationResult`, etc.
+- All types: `ManasFmConfig`, `SlugConfig`, `FileManager`, `FileInput`, `UploadResult`, `UploadPhase`, `UploadProgressEvent`, `DownloadResult`, `FileInfo`, `FileListItem`, `FolderListItem`, `VersionInfo`, `OperationResult`, etc.
 - All errors: `ManasFmError`, `ConfigError`, `ValidationError`, `FileNotFoundError`, `PermissionError`, `StorageError`, `OperationError`
 - `toNextJsHandler` — Next.js adapter
 

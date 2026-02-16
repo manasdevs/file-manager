@@ -1,8 +1,7 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import {
-  uploadFile,
   listFiles,
   getFileInfo,
   deleteFile,
@@ -11,6 +10,7 @@ import {
   moveFile,
   duplicateFile,
 } from "./actions";
+import { useUploadProgress } from "./use-upload-progress";
 import styles from "./page.module.css";
 
 interface FileListItem {
@@ -57,6 +57,36 @@ export default function Home() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const updateFileRef = useRef<HTMLInputElement>(null);
 
+  // Upload progress hook
+  const {
+    percent: uploadPercent,
+    phase: uploadPhase,
+    phaseLabel: uploadPhaseLabel,
+    isUploading,
+    error: uploadError,
+    result: uploadResult,
+    upload: startUpload,
+    reset: resetUpload,
+  } = useUploadProgress();
+
+  // When the hook finishes (success or error), update UI
+  useEffect(() => {
+    if (uploadResult) {
+      showResult(uploadResult);
+      refreshFiles(activeSlug);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [uploadResult]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (uploadError) {
+      showResult({ error: uploadError }, true);
+      setSelectedFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }, [uploadError]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const showResult = (data: unknown, isError = false) => {
     setResult(JSON.stringify(data, null, 2));
     setResultIsError(isError);
@@ -81,30 +111,15 @@ export default function Home() {
     refreshFiles(slug);
   };
 
-  const doUpload = async (file: File) => {
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("slug", activeSlug);
-      if (overwrite) formData.append("overwrite", "true");
-
-      const res = await uploadFile(formData);
-      showResult(res.success ? res.data : { error: res.error }, !res.success);
-      if (res.success) refreshFiles(activeSlug);
-    } catch (err) {
-      showResult({ error: err instanceof Error ? err.message : String(err) }, true);
-    } finally {
-      setLoading(false);
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-    }
+  const doUpload = (file: File) => {
+    resetUpload();
+    startUpload(file, activeSlug, { overwrite });
   };
 
-  const handleUpload = async () => {
+  const handleUpload = () => {
     const file = selectedFile || fileInputRef.current?.files?.[0];
     if (!file) return;
-    await doUpload(file);
+    doUpload(file);
   };
 
   const handleFileSelect = () => {
@@ -306,10 +321,10 @@ export default function Home() {
 
           <button
             onClick={handleUpload}
-            disabled={loading || !selectedFile}
+            disabled={isUploading || !selectedFile}
             className={styles.btnPrimary}
           >
-            {loading ? (
+            {isUploading ? (
               <>
                 <span className={styles.spinnerWhite} /> Uploading...
               </>
@@ -318,6 +333,19 @@ export default function Home() {
             )}
           </button>
         </div>
+
+        {/* Upload Progress Bar */}
+        {isUploading && (
+          <div className={styles.progressContainer}>
+            <div className={styles.progressBarTrack}>
+              <div className={styles.progressBarFill} style={{ width: `${uploadPercent}%` }} />
+            </div>
+            <div className={styles.progressInfo}>
+              <span className={styles.progressLabel}>{uploadPhaseLabel}</span>
+              <span className={styles.progressPercent}>{uploadPercent}%</span>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* File List Card */}

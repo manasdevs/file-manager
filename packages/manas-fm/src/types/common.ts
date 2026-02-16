@@ -17,11 +17,35 @@ export interface FileInput {
   size: number;
 }
 
+/** Phases of the upload pipeline, reported via onProgress */
+export type UploadPhase =
+  | "validating"
+  | "writing"
+  | "zipping"
+  | "compressing"
+  | "saving-metadata"
+  | "complete";
+
+/** Progress event emitted during upload */
+export interface UploadProgressEvent {
+  /** Current phase of the upload pipeline */
+  phase: UploadPhase;
+  /** Overall progress percentage (0–100) */
+  percent: number;
+  /** Human-readable description of the current phase */
+  message?: string;
+}
+
 /** Options for upload operations */
 export interface UploadOptions {
   fileName?: string;
   subPath?: string;
   overwrite?: boolean;
+  /**
+   * Called with progress updates during the server-side upload pipeline.
+   * Phases: validating → writing → zipping → compressing → saving-metadata → complete
+   */
+  onProgress?: (event: UploadProgressEvent) => void;
 }
 
 /** Options for update operations */

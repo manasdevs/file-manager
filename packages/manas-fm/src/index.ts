@@ -33,6 +33,8 @@ export type {
   FolderIdentifier,
   FileInput,
   UploadOptions,
+  UploadPhase,
+  UploadProgressEvent,
   UpdateOptions,
   DeleteOptions,
   RenameOptions,

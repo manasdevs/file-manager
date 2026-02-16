@@ -1,5 +1,5 @@
 import type { FileManager } from "../create-file-manager.js";
-import type { FileInput, DownloadOptions } from "../types/common.js";
+import type { FileInput, DownloadOptions, UploadProgressEvent } from "../types/common.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
 import { ValidationError } from "../errors/validation-error.js";
 import { OperationError } from "../errors/operation-error.js";
@@ -174,6 +174,60 @@ export function toNextJsHandler(fm: FileManager | Promise<FileManager>): {
           }
           const subPath = (formData.get("subPath") as string) || undefined;
           const overwrite = formData.get("overwrite") === "true";
+
+          // If the client opts into streaming progress, return NDJSON events
+          const wantsStream = request.headers.get("accept")?.includes("text/event-stream");
+
+          if (wantsStream) {
+            const encoder = new TextEncoder();
+            const stream = new TransformStream();
+            const writer = stream.writable.getWriter();
+
+            const writeEvent = async (data: Record<string, unknown>) => {
+              await writer.write(encoder.encode(JSON.stringify(data) + "\n"));
+            };
+
+            const onProgress = async (event: UploadProgressEvent) => {
+              await writeEvent({ type: "progress", ...event });
+            };
+
+            // Run the upload in the background, piping events to the stream
+            (async () => {
+              try {
+                const result = await manager.uploadFile(slug, file, {
+                  subPath,
+                  overwrite,
+                  onProgress,
+                });
+                await writeEvent({ type: "result", data: result });
+              } catch (err) {
+                const message = err instanceof Error ? err.message : "Internal server error";
+                const status =
+                  err instanceof ValidationError
+                    ? 400
+                    : err instanceof FileNotFoundError
+                      ? 404
+                      : err instanceof OperationError
+                        ? 409
+                        : err instanceof PermissionError
+                          ? 403
+                          : 500;
+                await writeEvent({ type: "error", error: message, status });
+              } finally {
+                await writer.close();
+              }
+            })();
+
+            return new Response(stream.readable, {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+              },
+            });
+          }
+
+          // Default: non-streaming JSON response (backwards compatible)
           const result = await manager.uploadFile(slug, file, { subPath, overwrite });
           return Response.json(result, { status: 201 });
         }

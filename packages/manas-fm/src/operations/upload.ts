@@ -1,6 +1,6 @@
 import * as path from "node:path";
 import type { OperationContext } from "../types/internal.js";
-import type { FileInput, UploadOptions } from "../types/common.js";
+import type { FileInput, UploadOptions, UploadPhase } from "../types/common.js";
 import type { UploadResult } from "../types/results.js";
 import { ValidationError } from "../errors/validation-error.js";
 import { OperationError } from "../errors/operation-error.js";
@@ -13,24 +13,72 @@ import {
 import { runCompression } from "./compression.js";
 import { runZip } from "./zip.js";
 
+/** Human-readable labels for each upload phase */
+const PHASE_MESSAGES: Record<UploadPhase, string> = {
+  validating: "Validating file...",
+  writing: "Writing file to disk...",
+  zipping: "Creating zip archive...",
+  compressing: "Compressing image...",
+  "saving-metadata": "Saving metadata...",
+  complete: "Upload complete",
+};
+
+/**
+ * Build a phase→percent mapping that dynamically adjusts based on which
+ * optional steps (zip, compression) are active for this slug.
+ */
+function buildPhasePercents(hasZip: boolean, hasCompression: boolean): Record<UploadPhase, number> {
+  // Allocate weights: validating=10, writing=30, zip=20, compression=20, metadata=10, complete=10
+  // When optional phases are absent their weight is redistributed to "writing".
+  let writingWeight = 30;
+  const zipWeight = hasZip ? 20 : 0;
+  const compressionWeight = hasCompression ? 20 : 0;
+  writingWeight += (hasZip ? 0 : 20) + (hasCompression ? 0 : 20);
+
+  let cumulative = 0;
+  const validating = (cumulative += 10);
+  const writing = (cumulative += writingWeight);
+  const zipping = (cumulative += zipWeight);
+  const compressing = (cumulative += compressionWeight);
+  const savingMeta = (cumulative += 10);
+  // whatever's left goes to complete (should always be 100)
+  const complete = 100;
+
+  return {
+    validating,
+    writing,
+    zipping,
+    compressing,
+    "saving-metadata": savingMeta,
+    complete,
+  };
+}
+
 export function createUploadFile(ctx: OperationContext) {
   return async function uploadFile(
     slug: string,
     file: FileInput,
     options?: UploadOptions,
   ): Promise<UploadResult> {
+    const notify = options?.onProgress;
     await ctx.cleanupManager.maybeRunCleanup();
 
     const slugConfig = ctx.pathResolver.getSlugConfig(slug);
+    const phases = buildPhasePercents(!!slugConfig.zip, !!slugConfig.compression);
 
-    // Validate allowedTypes
+    const emitProgress = (phase: UploadPhase) => {
+      notify?.({ phase, percent: phases[phase], message: PHASE_MESSAGES[phase] });
+    };
+
+    // ── Validate ──
+    emitProgress("validating");
+
     if (slugConfig.allowedTypes.length > 0 && !slugConfig.allowedTypes.includes(file.mimeType)) {
       throw new ValidationError(`File type "${file.mimeType}" is not allowed for slug "${slug}"`, {
         allowed: slugConfig.allowedTypes,
       });
     }
 
-    // Validate maxSizeBytes
     if (file.size > slugConfig.maxSizeBytes) {
       throw new ValidationError(
         `File size ${file.size} bytes exceeds maximum ${slugConfig.maxSizeBytes} bytes for slug "${slug}"`,
@@ -58,7 +106,8 @@ export function createUploadFile(ctx: OperationContext) {
       );
     }
 
-    // Write file
+    // ── Write file ──
+    emitProgress("writing");
     await atomicWriteFile(targetPath, file.buffer);
 
     // Prepare metadata
@@ -69,8 +118,9 @@ export function createUploadFile(ctx: OperationContext) {
 
     const variants: { compressed?: string; zip?: string } = {};
 
-    // Run zip BEFORE compression (compression may delete the original if keepOriginal=false)
+    // ── Zip ──
     if (slugConfig.zip) {
+      emitProgress("zipping");
       try {
         const zipPath = await runZip(targetPath, slugConfig.zip, ctx);
         variants.zip = path.relative(targetDir, zipPath);
@@ -82,8 +132,9 @@ export function createUploadFile(ctx: OperationContext) {
       }
     }
 
-    // Run compression after zip
+    // ── Compression ──
     if (slugConfig.compression) {
+      emitProgress("compressing");
       try {
         const compressedPath = await runCompression(
           targetPath,
@@ -100,7 +151,8 @@ export function createUploadFile(ctx: OperationContext) {
       }
     }
 
-    // Save metadata
+    // ── Save metadata ──
+    emitProgress("saving-metadata");
     await ctx.metadataManager.upsertFileEntry(targetDir, fileName, {
       originalName: file.originalName,
       mimeType: file.mimeType,
@@ -120,6 +172,9 @@ export function createUploadFile(ctx: OperationContext) {
     if (variants.compressed && slugConfig.compression && !slugConfig.compression.keepOriginal) {
       resultFilePath = path.resolve(targetDir, variants.compressed);
     }
+
+    // ── Complete ──
+    emitProgress("complete");
 
     return {
       success: true,
