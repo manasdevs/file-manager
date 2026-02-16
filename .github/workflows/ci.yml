@@ -45,5 +45,8 @@ jobs:
       - name: Build package
         run: pnpm --filter manas-fm build
 
+      - name: Build CLI
+        run: pnpm --filter add-manas-fm build
+
       - name: Build example app
         run: pnpm --filter manas-fm-example build
