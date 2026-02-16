@@ -5,7 +5,13 @@ import type { FileIdentifier, FolderIdentifier, DuplicateOptions } from "../type
 import type { OperationResult } from "../types/results.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
 import { OperationError } from "../errors/operation-error.js";
-import { fileExists, copyFile, ensureDirectory, generateUniqueName } from "../core/fs-utils.js";
+import {
+  fileExists,
+  copyFile,
+  ensureDirectory,
+  generateUniqueName,
+  generateFileName,
+} from "../core/fs-utils.js";
 
 export function createDuplicateFile(ctx: OperationContext) {
   return async function duplicateFile(
@@ -27,6 +33,9 @@ export function createDuplicateFile(ctx: OperationContext) {
     const targetDir = target ? ctx.pathResolver.resolveFolderPath(target) : resolved.directory;
     await ensureDirectory(targetDir);
 
+    // Read source metadata early (needed for naming strategy base name)
+    const metadata = await ctx.metadataManager.getFileEntry(resolved.directory, resolved.fileName);
+
     // Determine new file name
     let newFileName: string;
     if (options?.newName) {
@@ -38,10 +47,24 @@ export function createDuplicateFile(ctx: OperationContext) {
         });
       }
     } else {
-      // Get existing names in target directory to avoid conflicts
+      // Determine naming strategy from target slug
+      const targetSlug = target
+        ? typeof target === "string"
+          ? resolved.slug
+          : target.slug
+        : resolved.slug;
+      const targetSlugConfig = targetSlug ? ctx.pathResolver.getSlugConfig(targetSlug) : null;
+      const namingStrategy = targetSlugConfig?.fileNaming.strategy ?? "original";
+
       const entries = await fs.readdir(targetDir);
       const existingNames = new Set(entries);
-      newFileName = generateUniqueName(resolved.fileName, existingNames);
+
+      if (namingStrategy === "original") {
+        newFileName = generateUniqueName(resolved.fileName, existingNames);
+      } else {
+        const baseName = metadata?.originalName ?? resolved.fileName;
+        newFileName = generateFileName(baseName, namingStrategy, existingNames);
+      }
     }
 
     const newPath = path.join(targetDir, newFileName);
@@ -51,7 +74,6 @@ export function createDuplicateFile(ctx: OperationContext) {
     await copyFile(resolved.absolutePath, newPath);
 
     // Copy metadata
-    const metadata = await ctx.metadataManager.getFileEntry(resolved.directory, resolved.fileName);
     if (metadata) {
       const now = new Date().toISOString();
       const newMetadata: FileMetadataEntry = {

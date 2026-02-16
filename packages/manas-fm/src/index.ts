@@ -11,9 +11,12 @@ export type {
   GlobalVersioningConfig,
   GlobalCompressionConfig,
   GlobalZipConfig,
+  GlobalFileNamingConfig,
   SlugVersioningConfig,
   SlugCompressionConfig,
   SlugZipConfig,
+  SlugFileNamingConfig,
+  FileNamingStrategy,
 } from "./types/config.js";
 
 // Result types

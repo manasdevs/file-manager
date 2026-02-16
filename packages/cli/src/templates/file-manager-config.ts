@@ -46,6 +46,14 @@ export function generateFileManagerConfig(config: UserConfig, isTypeScript: bool
     lines.push(``);
   }
 
+  // File naming
+  if (config.fileNaming && config.fileNaming !== "original") {
+    lines.push(`  fileNaming: {`);
+    lines.push(`    strategy: "${config.fileNaming}",`);
+    lines.push(`  },`);
+    lines.push(``);
+  }
+
   // Slugs
   lines.push(`  slugs: {`);
   for (const slug of config.slugs) {

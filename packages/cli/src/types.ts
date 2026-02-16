@@ -16,6 +16,7 @@ export interface UserConfig {
   logLevel: "info" | "warn" | "error" | "debug";
   enableVersioning: boolean;
   maxVersions: number;
+  fileNaming: "original" | "uuid" | "name-uuid" | "name-number" | "name-timestamp" | "timestamp";
   slugs: SlugInput[];
   setupApiRoute: boolean;
   setupServerActions: boolean;

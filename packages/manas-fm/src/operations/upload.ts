@@ -1,3 +1,4 @@
+import * as fs from "node:fs/promises";
 import * as path from "node:path";
 import type { OperationContext } from "../types/internal.js";
 import type { FileInput, UploadOptions, UploadPhase } from "../types/common.js";
@@ -9,6 +10,7 @@ import {
   ensureDirectory,
   fileExists,
   sanitizeFileName,
+  generateFileName,
 } from "../core/fs-utils.js";
 import { runCompression } from "./compression.js";
 import { runZip } from "./zip.js";
@@ -92,7 +94,22 @@ export function createUploadFile(ctx: OperationContext) {
       : slugConfig.path;
     await ensureDirectory(targetDir);
 
-    const fileName = sanitizeFileName(options?.fileName ?? file.originalName);
+    // Determine file name based on naming strategy
+    const namingStrategy = slugConfig.fileNaming.strategy;
+    let fileName: string;
+
+    if (namingStrategy === "original") {
+      fileName = sanitizeFileName(options?.fileName ?? file.originalName);
+    } else {
+      const entries = await fs.readdir(targetDir).catch(() => [] as string[]);
+      const existingNames = new Set(entries);
+      fileName = generateFileName(
+        options?.fileName ?? file.originalName,
+        namingStrategy,
+        existingNames,
+      );
+    }
+
     const targetPath = path.join(targetDir, fileName);
 
     // Path traversal check

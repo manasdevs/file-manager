@@ -27,6 +27,25 @@ export interface GlobalZipConfig {
   enabledByDefault?: boolean;
 }
 
+/** Available file naming strategies */
+export type FileNamingStrategy =
+  | "original"
+  | "uuid"
+  | "name-uuid"
+  | "name-number"
+  | "name-timestamp"
+  | "timestamp";
+
+/** Global file naming configuration */
+export interface GlobalFileNamingConfig {
+  strategy: FileNamingStrategy;
+}
+
+/** Per-slug file naming override */
+export interface SlugFileNamingConfig {
+  strategy: FileNamingStrategy;
+}
+
 /** Per-slug versioning override */
 export interface SlugVersioningConfig {
   enabled: boolean;
@@ -58,6 +77,7 @@ export interface SlugConfig {
   versioning?: SlugVersioningConfig;
   compression?: SlugCompressionConfig;
   zip?: SlugZipConfig;
+  fileNaming?: SlugFileNamingConfig;
 }
 
 /** Top-level configuration passed to createFileManager */
@@ -68,6 +88,7 @@ export interface ManasFmConfig {
   versioning?: GlobalVersioningConfig;
   compression?: GlobalCompressionConfig;
   zip?: GlobalZipConfig;
+  fileNaming?: GlobalFileNamingConfig;
   slugs: Record<string, SlugConfig>;
 }
 
@@ -96,6 +117,7 @@ export interface ResolvedSlugConfig {
   versioning: { enabled: boolean; maxVersions: number };
   compression: ResolvedCompressionConfig | null;
   zip: ResolvedZipConfig | null;
+  fileNaming: ResolvedFileNamingConfig;
 }
 
 export interface ResolvedCompressionConfig {
@@ -110,4 +132,8 @@ export interface ResolvedZipConfig {
   enabled: boolean;
   keepOriginal: boolean;
   outputPath: string;
+}
+
+export interface ResolvedFileNamingConfig {
+  strategy: FileNamingStrategy;
 }

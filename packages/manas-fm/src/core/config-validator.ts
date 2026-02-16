@@ -5,8 +5,18 @@ import type {
   ResolvedSlugConfig,
   ResolvedCompressionConfig,
   ResolvedZipConfig,
+  FileNamingStrategy,
 } from "../types/config.js";
 import { ConfigError } from "../errors/config-error.js";
+
+const VALID_FILE_NAMING_STRATEGIES: readonly FileNamingStrategy[] = [
+  "original",
+  "uuid",
+  "name-uuid",
+  "name-number",
+  "name-timestamp",
+  "timestamp",
+];
 
 /** Validate user config and produce a fully resolved ValidatedConfig */
 export async function validateConfig(config: ManasFmConfig): Promise<ValidatedConfig> {
@@ -31,6 +41,16 @@ export async function validateConfig(config: ManasFmConfig): Promise<ValidatedCo
   const globalMaxVersions = config.versioning?.maxVersions ?? 10;
   const globalCompressionEnabled = config.compression?.enabledByDefault ?? false;
   const globalZipEnabled = config.zip?.enabledByDefault ?? false;
+  const globalFileNamingStrategy: FileNamingStrategy = config.fileNaming?.strategy ?? "original";
+
+  if (
+    config.fileNaming?.strategy !== undefined &&
+    !VALID_FILE_NAMING_STRATEGIES.includes(config.fileNaming.strategy)
+  ) {
+    throw new ConfigError(
+      `fileNaming.strategy must be one of: ${VALID_FILE_NAMING_STRATEGIES.join(", ")}`,
+    );
+  }
 
   const resolvedSlugs: Record<string, ResolvedSlugConfig> = {};
   let compressionNeeded = false;
@@ -81,6 +101,17 @@ export async function validateConfig(config: ManasFmConfig): Promise<ValidatedCo
       };
     }
 
+    const fileNamingStrategy: FileNamingStrategy =
+      slugConfig.fileNaming?.strategy ?? globalFileNamingStrategy;
+    if (
+      slugConfig.fileNaming?.strategy !== undefined &&
+      !VALID_FILE_NAMING_STRATEGIES.includes(slugConfig.fileNaming.strategy)
+    ) {
+      throw new ConfigError(
+        `Slug "${key}": fileNaming.strategy must be one of: ${VALID_FILE_NAMING_STRATEGIES.join(", ")}`,
+      );
+    }
+
     resolvedSlugs[key] = {
       path: path.resolve(basePath, slugConfig.path),
       allowedTypes: slugConfig.allowedTypes ?? [],
@@ -89,6 +120,7 @@ export async function validateConfig(config: ManasFmConfig): Promise<ValidatedCo
       versioning: { enabled: versioningEnabled, maxVersions },
       compression,
       zip,
+      fileNaming: { strategy: fileNamingStrategy },
     };
   }
 

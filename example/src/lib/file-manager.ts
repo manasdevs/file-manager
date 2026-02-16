@@ -15,6 +15,10 @@ const config: ManasFmConfig = {
     maxVersions: 5,
   },
 
+  fileNaming: {
+    strategy: "original",
+  },
+
   slugs: {
     images: {
       path: "images",
@@ -25,6 +29,9 @@ const config: ManasFmConfig = {
         keepOriginal: true,
         quality: 75,
         format: "webp",
+      },
+      fileNaming: {
+        strategy: "name-uuid",
       },
     },
 

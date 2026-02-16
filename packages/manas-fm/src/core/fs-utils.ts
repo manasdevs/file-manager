@@ -1,11 +1,12 @@
 import * as fs from "node:fs/promises";
 import * as path from "node:path";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import type { Stats } from "node:fs";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
 import { PermissionError } from "../errors/permission-error.js";
 import { StorageError } from "../errors/storage-error.js";
 import type { ManasFmError } from "../errors/base-error.js";
+import type { FileNamingStrategy } from "../types/config.js";
 
 /** Write file atomically: write to temp file then rename */
 export async function atomicWriteFile(filePath: string, data: Buffer | string): Promise<void> {
@@ -141,6 +142,79 @@ export function sanitizeFileName(name: string): string {
     sanitized = "unnamed";
   }
   return sanitized;
+}
+
+/** Format a Date into a file-safe timestamp string: YYYYMMDD-HHmmss (UTC) */
+export function formatTimestamp(date: Date): string {
+  const y = date.getUTCFullYear();
+  const m = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(date.getUTCDate()).padStart(2, "0");
+  const h = String(date.getUTCHours()).padStart(2, "0");
+  const min = String(date.getUTCMinutes()).padStart(2, "0");
+  const sec = String(date.getUTCSeconds()).padStart(2, "0");
+  return `${y}${m}${d}-${h}${min}${sec}`;
+}
+
+/** Generate a file name according to the given naming strategy */
+export function generateFileName(
+  originalName: string,
+  strategy: FileNamingStrategy,
+  existingNames: Set<string>,
+): string {
+  const sanitized = sanitizeFileName(originalName);
+
+  if (strategy === "original") {
+    return sanitized;
+  }
+
+  const ext = path.extname(sanitized);
+  const nameWithoutExt = sanitized.slice(0, sanitized.length - ext.length);
+
+  let candidate: string;
+
+  switch (strategy) {
+    case "uuid": {
+      candidate = `${randomUUID()}${ext}`;
+      break;
+    }
+
+    case "name-uuid": {
+      const shortUuid = randomUUID().split("-")[0];
+      candidate = `${nameWithoutExt}-${shortUuid}${ext}`;
+      break;
+    }
+
+    case "name-number": {
+      let counter = 1;
+      do {
+        candidate = `${nameWithoutExt}-${counter}${ext}`;
+        counter++;
+      } while (existingNames.has(candidate));
+      return candidate;
+    }
+
+    case "name-timestamp": {
+      const ts = formatTimestamp(new Date());
+      candidate = `${nameWithoutExt}-${ts}${ext}`;
+      break;
+    }
+
+    case "timestamp": {
+      const ts = formatTimestamp(new Date());
+      candidate = `${ts}${ext}`;
+      break;
+    }
+
+    default:
+      return sanitized;
+  }
+
+  // Collision fallback for uuid/timestamp strategies
+  if (existingNames.has(candidate)) {
+    return generateUniqueName(candidate, existingNames);
+  }
+
+  return candidate;
 }
 
 /** Map filesystem error codes to ManasFmError subclasses */

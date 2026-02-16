@@ -66,6 +66,11 @@ const config: ManasFmConfig = {
     enabledByDefault: false,
   },
 
+  // Optional: global file naming strategy (default: "original")
+  fileNaming: {
+    strategy: "original",   // "original" | "uuid" | "name-uuid" | "name-number" | "name-timestamp" | "timestamp"
+  },
+
   // Required: at least one slug must be defined
   slugs: {
     images: {
@@ -86,6 +91,7 @@ const config: ManasFmConfig = {
         keepOriginal: true,
         outputPath: "zipped",
       },
+      fileNaming: { strategy: "name-uuid" }, // per-slug override
     },
     documents: {
       path: "documents",
@@ -109,6 +115,7 @@ const fm = await createFileManager(config);
 | \`versioning\`    | \`SlugVersioningConfig\` | No       | Per-slug versioning override             |
 | \`compression\`   | \`SlugCompressionConfig\`| No       | Per-slug compression config              |
 | \`zip\`           | \`SlugZipConfig\`        | No       | Per-slug zip config                      |
+| \`fileNaming\`    | \`SlugFileNamingConfig\` | No       | Per-slug file naming strategy override   |
 
 ## Core Types
 
@@ -150,6 +157,23 @@ interface UploadProgressEvent {
   message?: string;    // Human-readable description
 }
 \`\`\`
+
+### FileNamingStrategy
+Controls how uploaded files are named on disk. Set globally or per-slug:
+\`\`\`typescript
+type FileNamingStrategy = "original" | "uuid" | "name-uuid" | "name-number" | "name-timestamp" | "timestamp";
+\`\`\`
+
+| Strategy         | Example Output                                      | Description                                     |
+|------------------|-----------------------------------------------------|-------------------------------------------------|
+| \`original\`      | \`photo.jpg\`                                        | Keep the original filename (default)            |
+| \`uuid\`          | \`a1b2c3d4-e5f6-7890-abcd-ef1234567890.jpg\`        | Full random UUID                                |
+| \`name-uuid\`     | \`photo-a1b2c3d4.jpg\`                               | Original name + 8-char UUID suffix              |
+| \`name-number\`   | \`photo-1.jpg\`, \`photo-2.jpg\`                      | Original name + incrementing counter            |
+| \`name-timestamp\` | \`photo-20260217-103000.jpg\`                        | Original name + UTC timestamp (YYYYMMDD-HHmmss) |
+| \`timestamp\`     | \`20260217-103000.jpg\`                               | UTC timestamp only                              |
+
+The naming strategy is applied during \`uploadFile\` and \`duplicateFile\`. The original filename is always preserved in metadata regardless of the strategy used. Per-slug \`fileNaming\` overrides the global setting.
 
 ## FileManager API
 
@@ -428,7 +452,7 @@ The Next.js adapter automatically maps errors to HTTP status codes:
 
 Main entry point: \`manas-fm\`
 - \`createFileManager\` \u2014 factory function
-- All types: \`ManasFmConfig\`, \`SlugConfig\`, \`FileManager\`, \`FileInput\`, \`UploadResult\`, \`UploadPhase\`, \`UploadProgressEvent\`, \`DownloadResult\`, \`FileInfo\`, \`FileListItem\`, \`FolderListItem\`, \`VersionInfo\`, \`OperationResult\`, etc.
+- All types: \`ManasFmConfig\`, \`SlugConfig\`, \`FileManager\`, \`FileInput\`, \`UploadResult\`, \`UploadPhase\`, \`UploadProgressEvent\`, \`DownloadResult\`, \`FileInfo\`, \`FileListItem\`, \`FolderListItem\`, \`VersionInfo\`, \`OperationResult\`, \`FileNamingStrategy\`, \`GlobalFileNamingConfig\`, \`SlugFileNamingConfig\`, etc.
 - All errors: \`ManasFmError\`, \`ConfigError\`, \`ValidationError\`, \`FileNotFoundError\`, \`PermissionError\`, \`StorageError\`, \`OperationError\`
 - \`toNextJsHandler\` \u2014 Next.js adapter
 
@@ -442,5 +466,6 @@ Main entry point: \`manas-fm\`
 6. **Retention** automatically expires files after \`retentionDays\` when cleanup is enabled.
 7. **\`createFileManager\` is async** \u2014 it validates config and creates directories before returning.
 8. **The Next.js adapter** (\`toNextJsHandler\`) creates GET/POST route handlers from a FileManager instance, routing by URL segment.
+9. **File naming strategies** control how uploaded files are named on disk. Set globally via \`fileNaming: { strategy }\` or per-slug. The \`original\` strategy (default) preserves the uploaded filename. Other strategies (\`uuid\`, \`name-uuid\`, \`name-number\`, \`name-timestamp\`, \`timestamp\`) generate names automatically. The original filename is always stored in metadata.
 `;
 }

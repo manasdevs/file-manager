@@ -138,6 +138,31 @@ export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig
     maxVersions = res.maxVersions;
   }
 
+  // ── File Naming Strategy ──
+  const { fileNaming } = await prompts(
+    {
+      type: "select",
+      name: "fileNaming",
+      message: "Default file naming strategy:",
+      choices: [
+        { title: "original        — Keep original filename (photo.jpg)", value: "original" },
+        { title: "uuid            — Random UUID (a1b2c3d4-...-.jpg)", value: "uuid" },
+        { title: "name-uuid       — Name + short UUID (photo-a1b2c3d4.jpg)", value: "name-uuid" },
+        {
+          title: "name-number     — Name + counter (photo-1.jpg, photo-2.jpg)",
+          value: "name-number",
+        },
+        {
+          title: "name-timestamp  — Name + timestamp (photo-20260217-103000.jpg)",
+          value: "name-timestamp",
+        },
+        { title: "timestamp       — Timestamp only (20260217-103000.jpg)", value: "timestamp" },
+      ],
+      initial: 0,
+    },
+    { onCancel },
+  );
+
   // ── Slugs (upload categories) ──
   blank();
   step("Configure upload categories (slugs)");
@@ -252,6 +277,7 @@ export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig
     logLevel,
     enableVersioning,
     maxVersions,
+    fileNaming,
     slugs,
     setupApiRoute,
     setupServerActions,
