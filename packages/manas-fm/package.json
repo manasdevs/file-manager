@@ -1,6 +1,6 @@
 {
   "name": "manas-fm",
-  "version": "1.0.2",
+  "version": "1.0.0",
   "description": "A file management package by M Anas for Node.js and Next.js applications",
   "type": "module",
   "main": "./dist/index.cjs",
