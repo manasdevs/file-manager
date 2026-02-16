@@ -1,6 +1,6 @@
 {
     "name": "add-manas-fm",
-    "version": "1.0.0",
+    "version": "1.0.5",
     "description": "CLI to set up manas-fm file manager in your project",
     "type": "module",
     "bin": {
