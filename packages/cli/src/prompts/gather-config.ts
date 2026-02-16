@@ -212,6 +212,7 @@ export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig
   // ── Framework-specific setup ──
   let setupApiRoute = false;
   let setupServerActions = false;
+  let setupUploadProgress = false;
 
   if (project.framework === "nextjs") {
     blank();
@@ -231,11 +232,18 @@ export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig
           message: "Generate server actions? (app/actions.ts)",
           initial: true,
         },
+        {
+          type: "confirm",
+          name: "setupUploadProgress",
+          message: "Generate upload progress hook? (useUploadProgress with progress bar support)",
+          initial: true,
+        },
       ],
       { onCancel },
     );
     setupApiRoute = nextSetup.setupApiRoute;
     setupServerActions = nextSetup.setupServerActions;
+    setupUploadProgress = nextSetup.setupUploadProgress;
   }
 
   return {
@@ -247,6 +255,7 @@ export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig
     slugs,
     setupApiRoute,
     setupServerActions,
+    setupUploadProgress,
   };
 }
 

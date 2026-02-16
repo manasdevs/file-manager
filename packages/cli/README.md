@@ -12,9 +12,11 @@ A beautiful, interactive CLI tool to quickly set up [manas-fm](https://github.co
 - ⚙️ **Interactive Setup** - Guided prompts for easy configuration
 - 📦 **Complete Integration** - Generates all necessary files and configurations
 - 🎯 **Framework Support** - Optimized for Next.js App Router with API routes and Server Actions
-- 🚀 **Zero Config** - Works out of the box with sensible defaults
+- � **Upload Progress** - Optional `useUploadProgress()` hook with network + server-side progress tracking
+- �🚀 **Zero Config** - Works out of the box with sensible defaults
 - 📁 **Smart Structure** - Creates organized storage directories with .gitkeep files
-- 🔧 **Package Manager Agnostic** - Supports npm, yarn, and pnpm
+- � **LLM Documentation** - Generates `docs/llms/manas-fm.llms.txt` for AI-assisted development
+- �🔧 **Package Manager Agnostic** - Supports npm, yarn, and pnpm
 
 ## Quick Start
 
@@ -171,6 +173,35 @@ export async function uploadFile(formData: FormData) {
 // ... more actions
 ```
 
+**Upload Progress Hook** (optional):
+```typescript
+// src/app/use-upload-progress.ts
+import { useUploadProgress } from "./use-upload-progress";
+
+function UploadForm() {
+  const { upload, percent, phase, phaseLabel, isUploading, error, result } = useUploadProgress();
+
+  const handleUpload = (file: File) => {
+    upload(file, "images", { overwrite: false });
+  };
+
+  return (
+    <div>
+      {isUploading && (
+        <div>
+          <progress value={percent} max={100} />
+          <span>{phaseLabel} ({percent}%)</span>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+The hook tracks progress at two levels:
+- **Network transfer (0–50%)**: Tracks bytes sent via XMLHttpRequest
+- **Server processing (50–100%)**: Reads streaming NDJSON progress from the API route (validating → writing → compressing → complete)
+
 #### For Node.js Projects:
 
 Generates a basic file manager configuration without framework-specific code.
@@ -211,6 +242,7 @@ storage/
   ? Select presets: ❯ images, documents, uploads
   ? Generate API route handler? yes
   ? Generate Server Actions? yes
+  ? Generate upload progress hook? yes
 
   ━━━ 📥 Installation ━━━
 
@@ -233,6 +265,10 @@ storage/
   ✓ Created: src/app/api/files/[...all]/route.ts
   ▸ Generating server actions...
   ✓ Created: src/app/actions.ts
+  ▸ Generating upload progress hook...
+  ✓ Created: src/app/use-upload-progress.ts
+  ▸ Generating llms.txt documentation...
+  ✓ Documentation: docs/llms/manas-fm.llms.txt
   ▸ Updating .gitignore...
   ✓ Updated .gitignore
 
@@ -251,9 +287,15 @@ storage/
   
   3. Server actions ready in app/actions.ts
   
-  4. Available slugs: images, documents, uploads
+  4. Upload progress hook ready: useUploadProgress()
+     import { useUploadProgress } from "./use-upload-progress";
+     const { upload, percent, phase } = useUploadProgress();
   
-  5. Read the docs: https://github.com/manasdevs/file-manager#readme
+  5. Available slugs: images, documents, uploads
+  
+  6. LLM docs at docs/llms/manas-fm.llms.txt
+  
+  7. Read the docs: https://github.com/manasdevs/file-manager#readme
 
 ```
 

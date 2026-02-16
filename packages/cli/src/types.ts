@@ -19,4 +19,5 @@ export interface UserConfig {
   slugs: SlugInput[];
   setupApiRoute: boolean;
   setupServerActions: boolean;
+  setupUploadProgress: boolean;
 }

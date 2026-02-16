@@ -8,6 +8,8 @@ import { gatherUserConfig } from "../prompts/gather-config.js";
 import { generateFileManagerConfig } from "../templates/file-manager-config.js";
 import { generateApiRoute } from "../templates/api-route.js";
 import { generateServerActions } from "../templates/server-actions.js";
+import { generateUploadProgressHook } from "../templates/upload-progress-hook.js";
+import { generateLlmsTxt } from "../templates/llms-txt.js";
 import { step, success, info, warn, error, outro, blank, section, code } from "../utils/logger.js";
 import styles from "ansi-styles";
 
@@ -93,7 +95,22 @@ export async function runInit() {
       const actionsContent = generateServerActions(project.isTypeScript, aliasImport);
       writeFileSafe(path.join(actionsDir, `actions.${ext}`), actionsContent);
     }
+
+    if (config.setupUploadProgress) {
+      step("Generating upload progress hook...");
+      const hookDir = project.srcDir ? path.join(cwd, "src", "app") : path.join(cwd, "app");
+
+      const hookContent = generateUploadProgressHook(project.isTypeScript);
+      writeFileSafe(path.join(hookDir, `use-upload-progress.${ext}`), hookContent);
+    }
   }
+
+  // ── Step 6b: Generate llms.txt documentation ──
+  step("Generating llms.txt documentation...");
+  const llmsDir = path.join(cwd, "docs", "llms");
+  const llmsContent = generateLlmsTxt();
+  writeFileSafe(path.join(llmsDir, "manas-fm.llms.txt"), llmsContent);
+  success(`Documentation: docs/llms/manas-fm.llms.txt`);
 
   // ── Step 7: Add storage to .gitignore ──
   step("Updating .gitignore...");
@@ -165,6 +182,19 @@ function printNextSteps(
       );
       stepNum++;
     }
+
+    if (config.setupUploadProgress) {
+      console.log(
+        dim(`  ${stepNum}.`) +
+          " " +
+          bold("Upload progress hook ready:") +
+          " " +
+          magenta("useUploadProgress()"),
+      );
+      console.log(cyan(`     import { useUploadProgress } from "./use-upload-progress";`));
+      console.log(cyan(`     const { upload, percent, phase } = useUploadProgress();`));
+      stepNum++;
+    }
   } else {
     console.log(dim(`  ${stepNum}.`) + " " + bold("Import and use the file manager:"));
     console.log(cyan(`     import { createFileManager } from "manas-fm";`));
@@ -178,6 +208,11 @@ function printNextSteps(
       bold("Available slugs:") +
       " " +
       config.slugs.map((s) => magenta(s.name)).join(dim(", ")),
+  );
+  stepNum++;
+
+  console.log(
+    dim(`  ${stepNum}.`) + " " + bold("LLM docs at") + " " + magenta("docs/llms/manas-fm.llms.txt"),
   );
   stepNum++;
 

@@ -42,6 +42,9 @@ export function generateServerActions(isTypeScript: boolean, aliasImport: string
   lines.push(``);
 
   // Upload action
+  // Note: This server action does not support progress tracking.
+  // For upload progress, use the useUploadProgress() hook which uploads
+  // directly to the /api/files/upload endpoint with XHR + streaming progress.
   if (isTypeScript) {
     lines.push(
       `export async function uploadFile(formData: FormData): Promise<ActionResult<UploadResult>> {`,
