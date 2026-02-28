@@ -1,4 +1,4 @@
-import { Readable, PassThrough } from "node:stream";
+import { PassThrough } from "node:stream";
 import type { Writable } from "node:stream";
 import type {
   StorageAdapter,
@@ -8,6 +8,7 @@ import type {
 } from "./storage-adapter.js";
 import { S3_PRESETS, resolveEndpoint } from "./s3-presets.js";
 import type { S3StorageConfig } from "../types/config.js";
+import type { Upload as UploadClass } from "@aws-sdk/lib-storage";
 import { ConfigError } from "../errors/config-error.js";
 
 /**
@@ -278,7 +279,7 @@ export class S3StorageAdapter implements StorageAdapter {
 
   async createWriteStream(key: string): Promise<Writable> {
     const client = await this.getClient();
-    let Upload: typeof import("@aws-sdk/lib-storage").Upload;
+    let Upload: typeof UploadClass;
 
     try {
       const libStorage = await import("@aws-sdk/lib-storage");

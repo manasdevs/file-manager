@@ -1,4 +1,4 @@
-import type { ManasFmConfig } from "./types/config.js";
+import type { ManasFmConfig, ValidatedStorageConfig } from "./types/config.js";
 import type { FileIdentifier, FolderIdentifier, FileInput } from "./types/common.js";
 import type {
   UploadOptions,
@@ -159,7 +159,7 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
  * Cloud adapters use dynamic imports so their SDKs are optional peer dependencies.
  */
 async function createStorageAdapter(
-  storageConfig: import("./types/config.js").ValidatedStorageConfig,
+  storageConfig: ValidatedStorageConfig,
   basePath: string,
 ): Promise<StorageAdapter> {
   const cfg = storageConfig.config;
