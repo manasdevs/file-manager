@@ -13,6 +13,8 @@ import { generateLlmsTxt } from "../templates/llms-txt.js";
 import { step, success, info, warn, error, outro, blank, section, code } from "../utils/logger.js";
 import styles from "ansi-styles";
 
+import type { CloudStorageInput, StorageProvider } from "../types.js";
+
 const bold = (text: string) => `${styles.bold.open}${text}${styles.bold.close}`;
 const cyan = (text: string) => `${styles.cyan.open}${text}${styles.cyan.close}`;
 const dim = (text: string) => `${styles.dim.open}${text}${styles.dim.close}`;
@@ -47,20 +49,49 @@ export async function runInit() {
   }
   blank();
 
-  // ── Step 4: Create storage directory ──
-  section("📁 Storage Setup");
-  step("Creating storage directory...");
-  const storagePath = path.resolve(cwd, config.storagePath);
-  ensureDir(storagePath);
-
-  // Create sub-directories for each slug
-  for (const slug of config.slugs) {
-    ensureDir(path.join(storagePath, slug.path));
+  // ── Step 3b: Install cloud SDK dependencies ──
+  const isCloud = config.storageProvider !== "local";
+  if (isCloud && config.cloudStorage) {
+    const cloudDeps = getCloudDependencies(config.cloudStorage.provider);
+    if (cloudDeps.length > 0) {
+      step(`Installing cloud storage dependencies: ${cloudDeps.join(", ")}...`);
+      const cloudInstallCmd = getInstallCommand(pm, cloudDeps.join(" "));
+      try {
+        execSync(cloudInstallCmd, { cwd, stdio: "pipe" });
+        success(`Installed ${cloudDeps.join(", ")}`);
+      } catch {
+        warn(`Could not auto-install. Please run: ${code(cloudInstallCmd)}`);
+      }
+    }
+    blank();
   }
-  success(`Storage directory: ${config.storagePath}`);
 
-  // Create .gitkeep in storage
-  writeFileSafe(path.join(storagePath, ".gitkeep"), "");
+  // ── Step 4: Create storage directory (local only) ──
+  section("📁 Storage Setup");
+  if (isCloud) {
+    info(`Cloud storage provider: ${bold(config.storageProvider)}`);
+    info(`Files will be stored in your cloud bucket/container.`);
+
+    // Generate .env.example with cloud credentials
+    step("Generating .env.example with cloud credentials...");
+    const envExample = generateEnvExample(config.cloudStorage!);
+    const envExamplePath = path.join(cwd, ".env.example");
+    writeFileSafe(envExamplePath, envExample);
+    success("Created .env.example with cloud storage placeholders");
+  } else {
+    step("Creating storage directory...");
+    const storagePath = path.resolve(cwd, config.storagePath);
+    ensureDir(storagePath);
+
+    // Create sub-directories for each slug
+    for (const slug of config.slugs) {
+      ensureDir(path.join(storagePath, slug.path));
+    }
+    success(`Storage directory: ${config.storagePath}`);
+
+    // Create .gitkeep in storage
+    writeFileSafe(path.join(storagePath, ".gitkeep"), "");
+  }
 
   blank();
 
@@ -112,9 +143,11 @@ export async function runInit() {
   writeFileSafe(path.join(llmsDir, "manas-fm.llms.txt"), llmsContent);
   success(`Documentation: docs/llms/manas-fm.llms.txt`);
 
-  // ── Step 7: Add storage to .gitignore ──
-  step("Updating .gitignore...");
-  addToGitignore(cwd, config.storagePath);
+  // ── Step 7: Add storage to .gitignore (local only) ──
+  if (!isCloud) {
+    step("Updating .gitignore...");
+    addToGitignore(cwd, config.storagePath);
+  }
 
   // ── Done ──
   outro();
@@ -211,6 +244,18 @@ function printNextSteps(
   );
   stepNum++;
 
+  if (config.storageProvider !== "local") {
+    console.log(
+      dim(`  ${stepNum}.`) +
+        " " +
+        bold("Cloud storage:") +
+        " " +
+        magenta(config.storageProvider) +
+        dim(" — copy .env.example → .env and fill in credentials"),
+    );
+    stepNum++;
+  }
+
   console.log(
     dim(`  ${stepNum}.`) + " " + bold("LLM docs at") + " " + magenta("docs/llms/manas-fm.llms.txt"),
   );
@@ -224,4 +269,81 @@ function printNextSteps(
       underline("https://github.com/manasdevs/file-manager#readme"),
   );
   console.log();
+}
+
+function getCloudDependencies(provider: string): string[] {
+  const s3Providers = [
+    "aws",
+    "gcs",
+    "digitalocean-spaces",
+    "backblaze",
+    "wasabi",
+    "minio",
+    "cloudflare",
+    "oracle",
+    "ibm",
+    "supabase",
+  ];
+
+  if (s3Providers.includes(provider)) {
+    return ["@aws-sdk/client-s3", "@aws-sdk/lib-storage"];
+  }
+  if (provider === "azure") {
+    return ["@azure/storage-blob"];
+  }
+  if (provider === "firebase") {
+    return ["firebase-admin"];
+  }
+  return [];
+}
+
+function generateEnvExample(cloudStorage: CloudStorageInput): string {
+  const lines: string[] = [
+    "# ──────────────────────────────────────────────",
+    "# Cloud Storage Credentials (manas-fm)",
+    "# ──────────────────────────────────────────────",
+    "",
+  ];
+
+  const s3Providers = [
+    "aws",
+    "gcs",
+    "digitalocean-spaces",
+    "backblaze",
+    "wasabi",
+    "minio",
+    "cloudflare",
+    "oracle",
+    "ibm",
+    "supabase",
+  ];
+
+  if (s3Providers.includes(cloudStorage.provider)) {
+    lines.push(`# S3-compatible storage (${cloudStorage.provider})`);
+    lines.push(`S3_ACCESS_KEY_ID=your-access-key-id`);
+    lines.push(`S3_SECRET_ACCESS_KEY=your-secret-access-key`);
+    if (cloudStorage.bucket) {
+      lines.push(`# Bucket: ${cloudStorage.bucket}`);
+    }
+    if (cloudStorage.region) {
+      lines.push(`# Region: ${cloudStorage.region}`);
+    }
+  } else if (cloudStorage.provider === "azure") {
+    lines.push(`# Azure Blob Storage`);
+    lines.push(
+      `AZURE_STORAGE_CONNECTION_STRING=DefaultEndpointsProtocol=https;AccountName=...;AccountKey=...;EndpointSuffix=core.windows.net`,
+    );
+    if (cloudStorage.containerName) {
+      lines.push(`# Container: ${cloudStorage.containerName}`);
+    }
+  } else if (cloudStorage.provider === "firebase") {
+    lines.push(`# Firebase Storage`);
+    lines.push(`GOOGLE_APPLICATION_CREDENTIALS=path/to/service-account.json`);
+    if (cloudStorage.firebaseBucket) {
+      lines.push(`# Bucket: ${cloudStorage.firebaseBucket}`);
+    }
+  }
+
+  lines.push("");
+  return lines.join("\n");
 }
