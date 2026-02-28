@@ -1,9 +1,7 @@
-import * as path from "node:path";
 import type { OperationContext } from "../types/internal.js";
 import type { FileIdentifier, DeleteOptions } from "../types/common.js";
 import type { OperationResult } from "../types/results.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
-import { safeDeleteFile, fileExists } from "../core/fs-utils.js";
 
 export function createDeleteFile(ctx: OperationContext) {
   return async function deleteFile(
@@ -14,7 +12,7 @@ export function createDeleteFile(ctx: OperationContext) {
 
     const resolved = ctx.pathResolver.resolveFilePath(identifier);
 
-    if (!(await fileExists(resolved.absolutePath))) {
+    if (!(await ctx.storage.fileExists(resolved.absolutePath))) {
       throw new FileNotFoundError(`File not found: ${resolved.fileName}`, {
         path: resolved.absolutePath,
       });
@@ -24,24 +22,28 @@ export function createDeleteFile(ctx: OperationContext) {
     const metadata = await ctx.metadataManager.getFileEntry(resolved.directory, resolved.fileName);
 
     // Delete main file
-    await safeDeleteFile(resolved.absolutePath);
+    await ctx.storage.deleteFile(resolved.absolutePath);
 
     // Delete versions if requested
     if (options?.deleteAllVersions && metadata?.versions) {
       for (const version of metadata.versions) {
         const versionNum = parseInt(version.versionId.replace("v", ""), 10);
         const versionPath = ctx.pathResolver.getVersionPath(resolved.absolutePath, versionNum);
-        await safeDeleteFile(versionPath);
+        await ctx.storage.deleteFile(versionPath);
       }
     }
 
     // Delete variants if requested
     if (options?.deleteVariants && metadata?.variants) {
       if (metadata.variants.compressed) {
-        await safeDeleteFile(path.resolve(resolved.directory, metadata.variants.compressed));
+        await ctx.storage.deleteFile(
+          ctx.pathResolver.resolve(resolved.directory, metadata.variants.compressed),
+        );
       }
       if (metadata.variants.zip) {
-        await safeDeleteFile(path.resolve(resolved.directory, metadata.variants.zip));
+        await ctx.storage.deleteFile(
+          ctx.pathResolver.resolve(resolved.directory, metadata.variants.zip),
+        );
       }
     }
 

@@ -1,8 +1,6 @@
-import * as path from "node:path";
 import type { ResolvedCompressionConfig } from "../types/config.js";
 import type { OperationContext } from "../types/internal.js";
 import { ConfigError } from "../errors/config-error.js";
-import { atomicWriteFile, ensureDirectory, safeDeleteFile } from "../core/fs-utils.js";
 
 /** Cache for the sharp module */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -33,16 +31,16 @@ export async function runCompression(
 ): Promise<string> {
   const sharp = await getSharp();
 
-  const dir = path.dirname(sourceFilePath);
-  const fileName = path.basename(sourceFilePath);
-  const ext = path.extname(fileName);
+  const dir = ctx.pathResolver.dirname(sourceFilePath);
+  const fileName = ctx.pathResolver.basename(sourceFilePath);
+  const ext = ctx.pathResolver.extname(fileName);
   const nameWithoutExt = fileName.slice(0, fileName.length - ext.length);
 
-  const compressedDir = path.resolve(dir, config.outputPath);
-  await ensureDirectory(compressedDir);
+  const compressedDir = ctx.pathResolver.resolve(dir, config.outputPath);
+  await ctx.storage.ensureDirectory(compressedDir);
 
   const newExt = `.${config.format}`;
-  const compressedPath = path.join(compressedDir, `${nameWithoutExt}${newExt}`);
+  const compressedPath = ctx.pathResolver.join(compressedDir, `${nameWithoutExt}${newExt}`);
 
   // Process image with sharp
   let pipeline = sharp(buffer);
@@ -60,11 +58,11 @@ export async function runCompression(
   }
 
   const compressedBuffer = await pipeline.toBuffer();
-  await atomicWriteFile(compressedPath, compressedBuffer);
+  await ctx.storage.writeFile(compressedPath, compressedBuffer);
 
   // Delete original if keepOriginal is false
   if (!config.keepOriginal) {
-    await safeDeleteFile(sourceFilePath);
+    await ctx.storage.deleteFile(sourceFilePath);
   }
 
   ctx.logger.info("Image compressed", {

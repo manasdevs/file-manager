@@ -1,9 +1,6 @@
-import * as path from "node:path";
-import * as fs from "node:fs";
 import archiver from "archiver";
 import type { ResolvedZipConfig } from "../types/config.js";
 import type { OperationContext } from "../types/internal.js";
-import { ensureDirectory, safeDeleteFile } from "../core/fs-utils.js";
 
 /** Create a zip archive of a file and return the path to the zip */
 export async function runZip(
@@ -11,30 +8,39 @@ export async function runZip(
   config: ResolvedZipConfig,
   ctx: OperationContext,
 ): Promise<string> {
-  const dir = path.dirname(sourceFilePath);
-  const fileName = path.basename(sourceFilePath);
+  const dir = ctx.pathResolver.dirname(sourceFilePath);
+  const fileName = ctx.pathResolver.basename(sourceFilePath);
 
-  const zipDir = path.resolve(dir, config.outputPath);
-  await ensureDirectory(zipDir);
+  const zipDir = ctx.pathResolver.resolve(dir, config.outputPath);
+  await ctx.storage.ensureDirectory(zipDir);
 
-  const zipPath = path.join(zipDir, `${fileName}.zip`);
+  const zipPath = ctx.pathResolver.join(zipDir, `${fileName}.zip`);
+
+  // Read the source file into a buffer for cloud-compatible archiving
+  const sourceBuffer = await ctx.storage.readFile(sourceFilePath);
 
   await new Promise<void>((resolve, reject) => {
-    const output = fs.createWriteStream(zipPath);
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    (async () => {
+      try {
+        const output = await ctx.storage.createWriteStream(zipPath);
+        const archive = archiver("zip", { zlib: { level: 9 } });
 
-    output.on("close", resolve);
-    output.on("error", reject);
-    archive.on("error", reject);
+        output.on("close", resolve);
+        output.on("error", reject);
+        archive.on("error", reject);
 
-    archive.pipe(output);
-    archive.file(sourceFilePath, { name: fileName });
-    archive.finalize();
+        archive.pipe(output);
+        archive.append(sourceBuffer, { name: fileName });
+        archive.finalize();
+      } catch (err) {
+        reject(err);
+      }
+    })();
   });
 
   // Delete original if keepOriginal is false
   if (!config.keepOriginal) {
-    await safeDeleteFile(sourceFilePath);
+    await ctx.storage.deleteFile(sourceFilePath);
   }
 
   ctx.logger.info("File archived", {

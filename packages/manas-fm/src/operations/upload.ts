@@ -1,17 +1,9 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import type { OperationContext } from "../types/internal.js";
 import type { FileInput, UploadOptions, UploadPhase } from "../types/common.js";
 import type { UploadResult } from "../types/results.js";
 import { ValidationError } from "../errors/validation-error.js";
 import { OperationError } from "../errors/operation-error.js";
-import {
-  atomicWriteFile,
-  ensureDirectory,
-  fileExists,
-  sanitizeFileName,
-  generateFileName,
-} from "../core/fs-utils.js";
+import { sanitizeFileName, generateFileName } from "../core/fs-utils.js";
 import { runCompression } from "./compression.js";
 import { runZip } from "./zip.js";
 
@@ -90,9 +82,9 @@ export function createUploadFile(ctx: OperationContext) {
 
     // Determine target path
     const targetDir = options?.subPath
-      ? path.join(slugConfig.path, options.subPath)
+      ? ctx.pathResolver.join(slugConfig.path, options.subPath)
       : slugConfig.path;
-    await ensureDirectory(targetDir);
+    await ctx.storage.ensureDirectory(targetDir);
 
     // Determine file name based on naming strategy
     const namingStrategy = slugConfig.fileNaming.strategy;
@@ -101,8 +93,8 @@ export function createUploadFile(ctx: OperationContext) {
     if (namingStrategy === "original") {
       fileName = sanitizeFileName(options?.fileName ?? file.originalName);
     } else {
-      const entries = await fs.readdir(targetDir).catch(() => [] as string[]);
-      const existingNames = new Set(entries);
+      const items = await ctx.storage.listFiles(targetDir).catch(() => []);
+      const existingNames = new Set(items.map((i) => i.name));
       fileName = generateFileName(
         options?.fileName ?? file.originalName,
         namingStrategy,
@@ -110,13 +102,13 @@ export function createUploadFile(ctx: OperationContext) {
       );
     }
 
-    const targetPath = path.join(targetDir, fileName);
+    const targetPath = ctx.pathResolver.join(targetDir, fileName);
 
     // Path traversal check
     ctx.pathResolver.assertWithinBasePath(targetPath);
 
     // Handle existing file
-    if (!options?.overwrite && (await fileExists(targetPath))) {
+    if (!options?.overwrite && (await ctx.storage.fileExists(targetPath))) {
       throw new OperationError(
         `File "${fileName}" already exists. Use overwrite option or a different name.`,
         { filePath: targetPath },
@@ -125,7 +117,7 @@ export function createUploadFile(ctx: OperationContext) {
 
     // ── Write file ──
     emitProgress("writing");
-    await atomicWriteFile(targetPath, file.buffer);
+    await ctx.storage.writeFile(targetPath, file.buffer);
 
     // Prepare metadata
     const now = new Date().toISOString();
@@ -140,7 +132,7 @@ export function createUploadFile(ctx: OperationContext) {
       emitProgress("zipping");
       try {
         const zipPath = await runZip(targetPath, slugConfig.zip, ctx);
-        variants.zip = path.relative(targetDir, zipPath);
+        variants.zip = ctx.pathResolver.relative(targetDir, zipPath);
       } catch (error) {
         ctx.logger.error("Zip creation failed", {
           fileName,
@@ -159,7 +151,7 @@ export function createUploadFile(ctx: OperationContext) {
           slugConfig.compression,
           ctx,
         );
-        variants.compressed = path.relative(targetDir, compressedPath);
+        variants.compressed = ctx.pathResolver.relative(targetDir, compressedPath);
       } catch (error) {
         ctx.logger.error("Compression failed", {
           fileName,
@@ -187,7 +179,7 @@ export function createUploadFile(ctx: OperationContext) {
     // Determine the actual file path to return (may differ if compression deleted original)
     let resultFilePath = targetPath;
     if (variants.compressed && slugConfig.compression && !slugConfig.compression.keepOriginal) {
-      resultFilePath = path.resolve(targetDir, variants.compressed);
+      resultFilePath = ctx.pathResolver.resolve(targetDir, variants.compressed);
     }
 
     // ── Complete ──

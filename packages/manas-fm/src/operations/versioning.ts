@@ -1,10 +1,8 @@
-import * as fs from "node:fs/promises";
 import type { OperationContext } from "../types/internal.js";
 import type { FileIdentifier } from "../types/common.js";
 import type { VersionInfo, OperationResult } from "../types/results.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
 import { ValidationError } from "../errors/validation-error.js";
-import { fileExists, copyFile, safeDeleteFile } from "../core/fs-utils.js";
 
 export function createListVersions(ctx: OperationContext) {
   return async function listVersions(identifier: FileIdentifier): Promise<VersionInfo[]> {
@@ -60,7 +58,7 @@ export function createRestoreVersion(ctx: OperationContext) {
     const versionNum = parseInt(versionId.replace("v", ""), 10);
     const versionPath = ctx.pathResolver.getVersionPath(resolved.absolutePath, versionNum);
 
-    if (!(await fileExists(versionPath))) {
+    if (!(await ctx.storage.fileExists(versionPath))) {
       throw new FileNotFoundError(`Version file not found: ${versionPath}`, {
         path: versionPath,
       });
@@ -70,8 +68,8 @@ export function createRestoreVersion(ctx: OperationContext) {
     const slugConfig = resolved.slug ? ctx.pathResolver.getSlugConfig(resolved.slug) : null;
     const shouldVersion = slugConfig?.versioning.enabled ?? false;
 
-    if (shouldVersion && (await fileExists(resolved.absolutePath))) {
-      const currentStat = await fs.stat(resolved.absolutePath);
+    if (shouldVersion && (await ctx.storage.fileExists(resolved.absolutePath))) {
+      const currentStats = await ctx.storage.getFileStats(resolved.absolutePath);
       // Use highest existing version number to avoid collisions
       const maxExisting = metadata.versions.reduce((max, v) => {
         const num = parseInt(v.versionId.replace("v", ""), 10);
@@ -80,12 +78,12 @@ export function createRestoreVersion(ctx: OperationContext) {
       const newVersionNum = maxExisting + 1;
       const newVersionPath = ctx.pathResolver.getVersionPath(resolved.absolutePath, newVersionNum);
 
-      await copyFile(resolved.absolutePath, newVersionPath);
+      await ctx.storage.copyFile(resolved.absolutePath, newVersionPath);
 
       metadata.versions.push({
         versionId: `v${newVersionNum}`,
         createdAt: new Date().toISOString(),
-        size: currentStat.size,
+        size: currentStats?.size ?? 0,
       });
 
       // Enforce maxVersions
@@ -94,15 +92,15 @@ export function createRestoreVersion(ctx: OperationContext) {
         const oldest = metadata.versions.shift()!;
         const oldNum = parseInt(oldest.versionId.replace("v", ""), 10);
         const oldPath = ctx.pathResolver.getVersionPath(resolved.absolutePath, oldNum);
-        await safeDeleteFile(oldPath);
+        await ctx.storage.deleteFile(oldPath);
       }
     }
 
     // Restore the version: copy version file to current
-    await copyFile(versionPath, resolved.absolutePath);
+    await ctx.storage.copyFile(versionPath, resolved.absolutePath);
 
-    const restoredStat = await fs.stat(resolved.absolutePath);
-    metadata.size = restoredStat.size;
+    const restoredStats = await ctx.storage.getFileStats(resolved.absolutePath);
+    metadata.size = restoredStats?.size ?? 0;
     metadata.updatedAt = new Date().toISOString();
 
     await ctx.metadataManager.upsertFileEntry(resolved.directory, resolved.fileName, metadata);

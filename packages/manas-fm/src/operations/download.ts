@@ -1,10 +1,8 @@
-import * as path from "node:path";
 import type { OperationContext } from "../types/internal.js";
 import type { FileIdentifier, DownloadOptions } from "../types/common.js";
 import type { DownloadResult } from "../types/results.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
 import { ValidationError } from "../errors/validation-error.js";
-import { readFileBuffer, fileExists } from "../core/fs-utils.js";
 
 /** MIME type lookup by extension */
 const MIME_TYPES: Record<string, string> = {
@@ -31,7 +29,8 @@ const MIME_TYPES: Record<string, string> = {
 };
 
 function getMimeType(filePath: string): string {
-  const ext = path.extname(filePath).toLowerCase();
+  const lastDot = filePath.lastIndexOf(".");
+  const ext = lastDot > 0 ? filePath.slice(lastDot).toLowerCase() : "";
   return MIME_TYPES[ext] ?? "application/octet-stream";
 }
 
@@ -44,7 +43,7 @@ export function createDownloadFile(ctx: OperationContext) {
 
     const resolved = ctx.pathResolver.resolveFilePath(identifier);
 
-    if (!(await fileExists(resolved.absolutePath))) {
+    if (!(await ctx.storage.fileExists(resolved.absolutePath))) {
       throw new FileNotFoundError(`File not found: ${resolved.fileName}`, {
         path: resolved.absolutePath,
       });
@@ -61,9 +60,9 @@ export function createDownloadFile(ctx: OperationContext) {
       );
 
       if (variant === "compressed" && metadata?.variants.compressed) {
-        downloadPath = path.resolve(resolved.directory, metadata.variants.compressed);
+        downloadPath = ctx.pathResolver.resolve(resolved.directory, metadata.variants.compressed);
       } else if (variant === "zip" && metadata?.variants.zip) {
-        downloadPath = path.resolve(resolved.directory, metadata.variants.zip);
+        downloadPath = ctx.pathResolver.resolve(resolved.directory, metadata.variants.zip);
       } else {
         throw new ValidationError(
           `Variant "${variant}" is not available for file "${resolved.fileName}"`,
@@ -71,7 +70,7 @@ export function createDownloadFile(ctx: OperationContext) {
         );
       }
 
-      if (!(await fileExists(downloadPath))) {
+      if (!(await ctx.storage.fileExists(downloadPath))) {
         throw new FileNotFoundError(`Variant file not found: ${downloadPath}`, {
           path: downloadPath,
           variant,
@@ -79,7 +78,7 @@ export function createDownloadFile(ctx: OperationContext) {
       }
     }
 
-    const buffer = await readFileBuffer(downloadPath);
+    const buffer = await ctx.storage.readFile(downloadPath);
 
     // Use metadata mimeType for original, infer for variants
     let mimeType: string;
@@ -97,7 +96,7 @@ export function createDownloadFile(ctx: OperationContext) {
 
     return {
       buffer,
-      fileName: path.basename(downloadPath),
+      fileName: ctx.pathResolver.basename(downloadPath),
       mimeType,
       size: buffer.length,
     };

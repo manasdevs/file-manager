@@ -1,11 +1,8 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import type { OperationContext } from "../types/internal.js";
 import type { FileIdentifier, RenameOptions } from "../types/common.js";
 import type { OperationResult } from "../types/results.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
 import { OperationError } from "../errors/operation-error.js";
-import { fileExists } from "../core/fs-utils.js";
 
 export function createRenameFile(ctx: OperationContext) {
   return async function renameFile(
@@ -17,23 +14,23 @@ export function createRenameFile(ctx: OperationContext) {
 
     const resolved = ctx.pathResolver.resolveFilePath(identifier);
 
-    if (!(await fileExists(resolved.absolutePath))) {
+    if (!(await ctx.storage.fileExists(resolved.absolutePath))) {
       throw new FileNotFoundError(`File not found: ${resolved.fileName}`, {
         path: resolved.absolutePath,
       });
     }
 
-    const newPath = path.join(resolved.directory, newName);
+    const newPath = ctx.pathResolver.join(resolved.directory, newName);
     ctx.pathResolver.assertWithinBasePath(newPath);
 
-    if (await fileExists(newPath)) {
+    if (await ctx.storage.fileExists(newPath)) {
       throw new OperationError(`A file named "${newName}" already exists`, {
         targetPath: newPath,
       });
     }
 
     // Rename the main file
-    await fs.rename(resolved.absolutePath, newPath);
+    await ctx.storage.moveFile(resolved.absolutePath, newPath);
 
     // Rename metadata entry
     await ctx.metadataManager.renameFileEntry(resolved.directory, resolved.fileName, newName);
@@ -47,8 +44,8 @@ export function createRenameFile(ctx: OperationContext) {
         const versionNum = parseInt(version.versionId.replace("v", ""), 10);
         const oldVersionPath = ctx.pathResolver.getVersionPath(resolved.absolutePath, versionNum);
         const newVersionPath = ctx.pathResolver.getVersionPath(newPath, versionNum);
-        if (await fileExists(oldVersionPath)) {
-          await fs.rename(oldVersionPath, newVersionPath);
+        if (await ctx.storage.fileExists(oldVersionPath)) {
+          await ctx.storage.moveFile(oldVersionPath, newVersionPath);
         }
       }
     }
@@ -58,30 +55,33 @@ export function createRenameFile(ctx: OperationContext) {
       const slugConfig = resolved.slug ? ctx.pathResolver.getSlugConfig(resolved.slug) : null;
 
       if (metadata.variants.compressed && slugConfig?.compression) {
-        const oldCompressedPath = path.resolve(resolved.directory, metadata.variants.compressed);
+        const oldCompressedPath = ctx.pathResolver.resolve(
+          resolved.directory,
+          metadata.variants.compressed,
+        );
         const newCompressedPath = ctx.pathResolver.getCompressedPath(newPath, slugConfig);
-        if (await fileExists(oldCompressedPath)) {
-          await fs.rename(oldCompressedPath, newCompressedPath);
+        if (await ctx.storage.fileExists(oldCompressedPath)) {
+          await ctx.storage.moveFile(oldCompressedPath, newCompressedPath);
           // Update variant path in metadata
           const updatedMeta = { ...metadata };
           updatedMeta.variants = {
             ...updatedMeta.variants,
-            compressed: path.relative(resolved.directory, newCompressedPath),
+            compressed: ctx.pathResolver.relative(resolved.directory, newCompressedPath),
           };
           await ctx.metadataManager.upsertFileEntry(resolved.directory, newName, updatedMeta);
         }
       }
 
       if (metadata.variants.zip && slugConfig?.zip) {
-        const oldZipPath = path.resolve(resolved.directory, metadata.variants.zip);
+        const oldZipPath = ctx.pathResolver.resolve(resolved.directory, metadata.variants.zip);
         const newZipPath = ctx.pathResolver.getZipPath(newPath, slugConfig);
-        if (await fileExists(oldZipPath)) {
-          await fs.rename(oldZipPath, newZipPath);
+        if (await ctx.storage.fileExists(oldZipPath)) {
+          await ctx.storage.moveFile(oldZipPath, newZipPath);
           const currentMeta = await ctx.metadataManager.getFileEntry(resolved.directory, newName);
           if (currentMeta) {
             currentMeta.variants = {
               ...currentMeta.variants,
-              zip: path.relative(resolved.directory, newZipPath),
+              zip: ctx.pathResolver.relative(resolved.directory, newZipPath),
             };
             await ctx.metadataManager.upsertFileEntry(resolved.directory, newName, currentMeta);
           }

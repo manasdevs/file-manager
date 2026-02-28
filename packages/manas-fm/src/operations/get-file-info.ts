@@ -1,10 +1,7 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import type { OperationContext } from "../types/internal.js";
 import type { FileIdentifier } from "../types/common.js";
 import type { FileInfo, VersionInfo } from "../types/results.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
-import { fileExists } from "../core/fs-utils.js";
 
 export function createGetFileInfo(ctx: OperationContext) {
   return async function getFileInfo(identifier: FileIdentifier): Promise<FileInfo> {
@@ -12,13 +9,13 @@ export function createGetFileInfo(ctx: OperationContext) {
 
     const resolved = ctx.pathResolver.resolveFilePath(identifier);
 
-    if (!(await fileExists(resolved.absolutePath))) {
+    if (!(await ctx.storage.fileExists(resolved.absolutePath))) {
       throw new FileNotFoundError(`File not found: ${resolved.fileName}`, {
         path: resolved.absolutePath,
       });
     }
 
-    const stat = await fs.stat(resolved.absolutePath);
+    const stat = await ctx.storage.getFileStats(resolved.absolutePath);
     const metadata = await ctx.metadataManager.getFileEntry(resolved.directory, resolved.fileName);
 
     const versions: VersionInfo[] | undefined = metadata?.versions.map((v) => ({
@@ -34,10 +31,12 @@ export function createGetFileInfo(ctx: OperationContext) {
     const info: FileInfo = {
       name: resolved.fileName,
       path: resolved.absolutePath,
-      size: stat.size,
+      size: stat?.size ?? 0,
       mimeType: metadata?.mimeType ?? "application/octet-stream",
-      createdAt: metadata?.createdAt ?? stat.birthtime.toISOString(),
-      updatedAt: metadata?.updatedAt ?? stat.mtime.toISOString(),
+      createdAt:
+        metadata?.createdAt ?? stat?.lastModified.toISOString() ?? new Date().toISOString(),
+      updatedAt:
+        metadata?.updatedAt ?? stat?.lastModified.toISOString() ?? new Date().toISOString(),
     };
 
     if (versions && versions.length > 0) {
@@ -52,10 +51,10 @@ export function createGetFileInfo(ctx: OperationContext) {
       info.variants = {
         original: resolved.absolutePath,
         compressed: metadata.variants.compressed
-          ? path.resolve(resolved.directory, metadata.variants.compressed)
+          ? ctx.pathResolver.resolve(resolved.directory, metadata.variants.compressed)
           : undefined,
         zip: metadata.variants.zip
-          ? path.resolve(resolved.directory, metadata.variants.zip)
+          ? ctx.pathResolver.resolve(resolved.directory, metadata.variants.zip)
           : undefined,
       };
     }

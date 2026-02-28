@@ -1,10 +1,8 @@
-import * as path from "node:path";
 import type { OperationContext } from "../types/internal.js";
 import type { FileIdentifier, FolderIdentifier, MoveOptions } from "../types/common.js";
 import type { OperationResult } from "../types/results.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
 import { OperationError } from "../errors/operation-error.js";
-import { fileExists, moveFile as fsMove, ensureDirectory } from "../core/fs-utils.js";
 
 export function createMoveFile(ctx: OperationContext) {
   return async function moveFile(
@@ -17,17 +15,17 @@ export function createMoveFile(ctx: OperationContext) {
     const resolved = ctx.pathResolver.resolveFilePath(identifier);
     const targetDir = ctx.pathResolver.resolveFolderPath(target);
 
-    if (!(await fileExists(resolved.absolutePath))) {
+    if (!(await ctx.storage.fileExists(resolved.absolutePath))) {
       throw new FileNotFoundError(`File not found: ${resolved.fileName}`, {
         path: resolved.absolutePath,
       });
     }
 
-    await ensureDirectory(targetDir);
+    await ctx.storage.ensureDirectory(targetDir);
 
-    const targetPath = path.join(targetDir, resolved.fileName);
+    const targetPath = ctx.pathResolver.join(targetDir, resolved.fileName);
 
-    if (!options?.overwrite && (await fileExists(targetPath))) {
+    if (!options?.overwrite && (await ctx.storage.fileExists(targetPath))) {
       throw new OperationError(
         `A file named "${resolved.fileName}" already exists in the target directory`,
         { targetPath },
@@ -35,7 +33,7 @@ export function createMoveFile(ctx: OperationContext) {
     }
 
     // Move main file
-    await fsMove(resolved.absolutePath, targetPath);
+    await ctx.storage.moveFile(resolved.absolutePath, targetPath);
 
     // Move metadata entry
     await ctx.metadataManager.moveFileEntry(resolved.directory, targetDir, resolved.fileName);
@@ -48,8 +46,8 @@ export function createMoveFile(ctx: OperationContext) {
           const versionNum = parseInt(version.versionId.replace("v", ""), 10);
           const oldVersionPath = ctx.pathResolver.getVersionPath(resolved.absolutePath, versionNum);
           const newVersionPath = ctx.pathResolver.getVersionPath(targetPath, versionNum);
-          if (await fileExists(oldVersionPath)) {
-            await fsMove(oldVersionPath, newVersionPath);
+          if (await ctx.storage.fileExists(oldVersionPath)) {
+            await ctx.storage.moveFile(oldVersionPath, newVersionPath);
           }
         }
       }
@@ -60,23 +58,26 @@ export function createMoveFile(ctx: OperationContext) {
       const metadata = await ctx.metadataManager.getFileEntry(targetDir, resolved.fileName);
       if (metadata?.variants) {
         if (metadata.variants.compressed) {
-          const oldPath = path.resolve(resolved.directory, metadata.variants.compressed);
+          const oldPath = ctx.pathResolver.resolve(
+            resolved.directory,
+            metadata.variants.compressed,
+          );
           const slugConfig = resolved.slug ? ctx.pathResolver.getSlugConfig(resolved.slug) : null;
-          if (slugConfig?.compression && (await fileExists(oldPath))) {
+          if (slugConfig?.compression && (await ctx.storage.fileExists(oldPath))) {
             const newCompressedPath = ctx.pathResolver.getCompressedPath(targetPath, slugConfig);
-            await ensureDirectory(path.dirname(newCompressedPath));
-            await fsMove(oldPath, newCompressedPath);
-            metadata.variants.compressed = path.relative(targetDir, newCompressedPath);
+            await ctx.storage.ensureDirectory(ctx.pathResolver.dirname(newCompressedPath));
+            await ctx.storage.moveFile(oldPath, newCompressedPath);
+            metadata.variants.compressed = ctx.pathResolver.relative(targetDir, newCompressedPath);
           }
         }
         if (metadata.variants.zip) {
-          const oldPath = path.resolve(resolved.directory, metadata.variants.zip);
+          const oldPath = ctx.pathResolver.resolve(resolved.directory, metadata.variants.zip);
           const slugConfig = resolved.slug ? ctx.pathResolver.getSlugConfig(resolved.slug) : null;
-          if (slugConfig?.zip && (await fileExists(oldPath))) {
+          if (slugConfig?.zip && (await ctx.storage.fileExists(oldPath))) {
             const newZipPath = ctx.pathResolver.getZipPath(targetPath, slugConfig);
-            await ensureDirectory(path.dirname(newZipPath));
-            await fsMove(oldPath, newZipPath);
-            metadata.variants.zip = path.relative(targetDir, newZipPath);
+            await ctx.storage.ensureDirectory(ctx.pathResolver.dirname(newZipPath));
+            await ctx.storage.moveFile(oldPath, newZipPath);
+            metadata.variants.zip = ctx.pathResolver.relative(targetDir, newZipPath);
           }
         }
         await ctx.metadataManager.upsertFileEntry(targetDir, resolved.fileName, metadata);

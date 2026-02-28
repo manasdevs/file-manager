@@ -1,11 +1,8 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import type { OperationContext, FileMetadataEntry } from "../types/internal.js";
 import type { FileIdentifier, FileInput, UpdateOptions } from "../types/common.js";
 import type { UploadResult } from "../types/results.js";
 import { FileNotFoundError } from "../errors/file-not-found-error.js";
 import { ValidationError } from "../errors/validation-error.js";
-import { atomicWriteFile, fileExists, copyFile, safeDeleteFile } from "../core/fs-utils.js";
 import { runCompression } from "./compression.js";
 import { runZip } from "./zip.js";
 
@@ -19,7 +16,7 @@ export function createUpdateFile(ctx: OperationContext) {
 
     const resolved = ctx.pathResolver.resolveFilePath(identifier);
 
-    if (!(await fileExists(resolved.absolutePath))) {
+    if (!(await ctx.storage.fileExists(resolved.absolutePath))) {
       throw new FileNotFoundError(`File not found: ${resolved.fileName}`, {
         path: resolved.absolutePath,
       });
@@ -59,7 +56,7 @@ export function createUpdateFile(ctx: OperationContext) {
     const versions = existingMetadata?.versions ? [...existingMetadata.versions] : [];
 
     if (shouldVersion) {
-      const currentStat = await fs.stat(resolved.absolutePath);
+      const currentStats = await ctx.storage.getFileStats(resolved.absolutePath);
       // Use highest existing version number to avoid collisions after maxVersions pruning
       const maxExisting = versions.reduce((max, v) => {
         const num = parseInt(v.versionId.replace("v", ""), 10);
@@ -69,12 +66,12 @@ export function createUpdateFile(ctx: OperationContext) {
       const versionPath = ctx.pathResolver.getVersionPath(resolved.absolutePath, versionNumber);
 
       // Copy current file to version path
-      await copyFile(resolved.absolutePath, versionPath);
+      await ctx.storage.copyFile(resolved.absolutePath, versionPath);
 
       versions.push({
         versionId: `v${versionNumber}`,
         createdAt: new Date().toISOString(),
-        size: currentStat.size,
+        size: currentStats?.size ?? 0,
       });
 
       // Enforce maxVersions
@@ -86,7 +83,7 @@ export function createUpdateFile(ctx: OperationContext) {
           resolved.absolutePath,
           oldVersionNum,
         );
-        await safeDeleteFile(oldVersionPath);
+        await ctx.storage.deleteFile(oldVersionPath);
         ctx.logger.info("Old version removed", {
           fileName: resolved.fileName,
           version: oldest.versionId,
@@ -95,7 +92,7 @@ export function createUpdateFile(ctx: OperationContext) {
     }
 
     // Write new file
-    await atomicWriteFile(resolved.absolutePath, newFile.buffer);
+    await ctx.storage.writeFile(resolved.absolutePath, newFile.buffer);
 
     const now = new Date().toISOString();
     const variants: { compressed?: string; zip?: string } = {};
@@ -104,7 +101,7 @@ export function createUpdateFile(ctx: OperationContext) {
     if (slugConfig?.zip) {
       try {
         const zipPath = await runZip(resolved.absolutePath, slugConfig.zip, ctx);
-        variants.zip = path.relative(resolved.directory, zipPath);
+        variants.zip = ctx.pathResolver.relative(resolved.directory, zipPath);
       } catch (error) {
         ctx.logger.error("Zip failed on update", {
           fileName: resolved.fileName,
@@ -122,7 +119,7 @@ export function createUpdateFile(ctx: OperationContext) {
           slugConfig.compression,
           ctx,
         );
-        variants.compressed = path.relative(resolved.directory, compressedPath);
+        variants.compressed = ctx.pathResolver.relative(resolved.directory, compressedPath);
       } catch (error) {
         ctx.logger.error("Compression failed on update", {
           fileName: resolved.fileName,
