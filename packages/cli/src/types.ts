@@ -10,8 +10,41 @@ export interface SlugInput {
   retentionDays?: number;
 }
 
+export type StorageProvider =
+  | "local"
+  | "aws"
+  | "gcs"
+  | "digitalocean-spaces"
+  | "backblaze"
+  | "wasabi"
+  | "minio"
+  | "oracle"
+  | "ibm"
+  | "supabase"
+  | "cloudflare"
+  | "azure"
+  | "firebase";
+
+export interface CloudStorageInput {
+  provider: StorageProvider;
+  /** S3-compatible providers */
+  bucket?: string;
+  region?: string;
+  accessKeyId?: string;
+  secretAccessKey?: string;
+  endpoint?: string;
+  keyPrefix?: string;
+  /** Azure */
+  connectionString?: string;
+  containerName?: string;
+  /** Firebase */
+  firebaseBucket?: string;
+}
+
 export interface UserConfig {
   storagePath: string;
+  storageProvider: StorageProvider;
+  cloudStorage?: CloudStorageInput;
   enableLogging: boolean;
   logLevel: "info" | "warn" | "error" | "debug";
   enableVersioning: boolean;
