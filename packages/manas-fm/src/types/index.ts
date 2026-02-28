@@ -14,6 +14,16 @@ export type {
   ResolvedCompressionConfig,
   ResolvedZipConfig,
   ResolvedLoggingConfig,
+  // Storage config types
+  StorageConfig,
+  LocalStorageConfig,
+  S3StorageConfig,
+  S3Provider,
+  S3Credentials,
+  AzureStorageConfig,
+  FirebaseStorageConfig,
+  CustomStorageConfig,
+  ValidatedStorageConfig,
 } from "./config.js";
 
 export type {

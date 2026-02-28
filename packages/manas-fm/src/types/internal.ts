@@ -3,10 +3,12 @@ import type { PathResolver } from "../core/path-resolver.js";
 import type { MetadataManager } from "../core/metadata-manager.js";
 import type { CleanupManager } from "../core/cleanup-manager.js";
 import type { Logger } from "../core/logger.js";
+import type { StorageAdapter } from "../adapters/storage-adapter.js";
 
 /** Shared context passed to all operation factory functions */
 export interface OperationContext {
   config: ValidatedConfig;
+  storage: StorageAdapter;
   pathResolver: PathResolver;
   metadataManager: MetadataManager;
   cleanupManager: CleanupManager;

@@ -6,6 +6,8 @@ export interface UploadResult {
   size: number;
   mimeType: string;
   createdAt: string;
+  /** Public URL for the uploaded file (available when using cloud storage) */
+  url?: string;
   variants?: {
     compressed?: string;
     zip?: string;
@@ -26,6 +28,8 @@ export interface FileInfo {
   mimeType: string;
   createdAt: string;
   updatedAt: string;
+  /** Public URL for the file (available when using cloud storage) */
+  url?: string;
   versions?: VersionInfo[];
   retentionExpiresAt?: string | null;
   variants?: {
@@ -41,6 +45,8 @@ export interface FileListItem {
   size: number;
   mimeType: string;
   createdAt: string;
+  /** Public URL for the file (available when using cloud storage) */
+  url?: string;
 }
 
 export interface FolderListItem {

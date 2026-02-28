@@ -1,3 +1,97 @@
+import type { StorageAdapter } from "../adapters/storage-adapter.js";
+
+// ─── Storage Provider Configuration ────────────────────────────
+
+/** S3-compatible cloud provider identifiers */
+export type S3Provider =
+  | "aws"
+  | "gcs"
+  | "digitalocean-spaces"
+  | "backblaze"
+  | "wasabi"
+  | "minio"
+  | "cloudflare"
+  | "oracle"
+  | "ibm"
+  | "supabase"
+  | "custom-s3";
+
+/** Credentials for S3-compatible providers */
+export interface S3Credentials {
+  accessKeyId: string;
+  secretAccessKey: string;
+  sessionToken?: string;
+}
+
+/** Local file-system storage (default) */
+export interface LocalStorageConfig {
+  provider: "local";
+}
+
+/** S3-compatible storage (AWS, GCS, DigitalOcean, Backblaze, Wasabi, MinIO, Oracle, IBM, Supabase, etc.) */
+export interface S3StorageConfig {
+  provider: "s3";
+  /** S3-compatible provider preset. Default: "aws" */
+  s3Provider?: S3Provider;
+  /** Bucket name */
+  bucket: string;
+  /** AWS region or equivalent */
+  region?: string;
+  /** Custom endpoint URL (required for non-AWS providers or custom-s3) */
+  endpoint?: string;
+  /** S3 credentials. If omitted, uses the SDK default credential chain. */
+  credentials?: S3Credentials;
+  /** Optional key prefix within the bucket (e.g. "uploads/") */
+  prefix?: string;
+  /** Force path-style URLs (required for MinIO, some providers). Default: false */
+  forcePathStyle?: boolean;
+}
+
+/** Azure Blob Storage */
+export interface AzureStorageConfig {
+  provider: "azure";
+  /** Connection string (takes precedence) */
+  connectionString?: string;
+  /** Storage account name (used with accountKey or SAS) */
+  accountName?: string;
+  /** Storage account key */
+  accountKey?: string;
+  /** Container name */
+  container: string;
+  /** Optional key prefix */
+  prefix?: string;
+}
+
+/** Firebase Storage (uses Firebase Admin SDK) */
+export interface FirebaseStorageConfig {
+  provider: "firebase";
+  /** Firebase storage bucket name (e.g. "my-project.appspot.com") */
+  bucket: string;
+  /** Optional key prefix */
+  prefix?: string;
+  /**
+   * Path to a service account JSON file.
+   * If omitted, uses GOOGLE_APPLICATION_CREDENTIALS env var or default credentials.
+   */
+  serviceAccountPath?: string;
+}
+
+/** Bring your own StorageAdapter implementation */
+export interface CustomStorageConfig {
+  provider: "custom";
+  adapter: StorageAdapter;
+}
+
+/** Discriminated union of all supported storage configurations */
+export type StorageConfig =
+  | LocalStorageConfig
+  | S3StorageConfig
+  | AzureStorageConfig
+  | FirebaseStorageConfig
+  | CustomStorageConfig;
+
+// ─── Core Configuration ────────────────────────────────────────
+
 /** Global logging configuration */
 export interface LoggingConfig {
   enabled: boolean;
@@ -82,7 +176,17 @@ export interface SlugConfig {
 
 /** Top-level configuration passed to createFileManager */
 export interface ManasFmConfig {
+  /**
+   * Root storage directory path.
+   * - For local storage: an absolute or relative filesystem path.
+   * - For cloud storage: used as the key prefix (optional; overridden by per-provider `prefix`).
+   */
   basePath: string;
+  /**
+   * Storage backend configuration.
+   * Defaults to local filesystem when omitted.
+   */
+  storage?: StorageConfig;
   logging?: LoggingConfig;
   cleanup?: CleanupConfig;
   versioning?: GlobalVersioningConfig;
@@ -92,9 +196,20 @@ export interface ManasFmConfig {
   slugs: Record<string, SlugConfig>;
 }
 
+/** Validated storage configuration with resolved provider settings */
+export interface ValidatedStorageConfig {
+  /** The storage provider type */
+  provider: "local" | "s3" | "azure" | "firebase" | "custom";
+  /** Whether the storage is a cloud/remote backend */
+  isCloud: boolean;
+  /** The original storage config (for adapter construction) */
+  config: StorageConfig;
+}
+
 /** Internal validated/resolved config with all defaults filled */
 export interface ValidatedConfig {
   basePath: string;
+  storage: ValidatedStorageConfig;
   logging: ResolvedLoggingConfig;
   cleanup: Required<CleanupConfig>;
   versioning: Required<GlobalVersioningConfig>;
