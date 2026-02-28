@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.5.6] — 2026-03-01
+
+### Added
+
+- **Bytea Pack** — new built-in feature for packaging files into a compressed, ZIP-based binary format ready for direct storage in PostgreSQL `bytea` columns.
+  - `byteaPack(input, options?)` — standalone utility that resolves a `Buffer`, file path (`string`), or `Readable` stream into a single buffer, embeds a structured `ByteaManifest` (version, slug, filename, MIME type, `originalSize`, ISO timestamps, optional custom data), and returns a raw `Buffer` with no base64 encoding.
+  - `byteaUnpack(packed)` — standalone utility that extracts the original file content and manifest from a packed buffer using `adm-zip`.
+  - `fm.byteaPack(slug, file, options?)` — `FileManager` method that adds slug-based MIME type and size validation, auto-injects the slug into the manifest, and accepts both `FileInput` and `ByteaPackInput`.
+  - `fm.byteaUnpack(packed)` — `FileManager` method that delegates to the standalone utility with a manifest-slug sanity check and structured logging.
+  - `compressionLevel` option (0–9, default: 9) for tuning ZIP compression.
+  - `custom` metadata field on both `ByteaPackInput` and `ByteaPackOptions` (options-level values win on key conflicts).
+  - Exported types: `ByteaPackSource`, `ByteaPackInput`, `ByteaPackOptions`, `ByteaPackResult`, `ByteaManifest`, `ByteaUnpackResult`.
+  - Exported constant: `BYTEA_PACK_VERSION` (currently `1`).
+- `adm-zip` added as a runtime dependency for ZIP extraction.
+
+### Changed
+
+- `FileManager` interface extended with `byteaPack` and `byteaUnpack`.
+
+---
+
 ## [v1.4.6] — v1.4.6
 
 ### Added
@@ -119,7 +140,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TypeScript-first with full type exports.
 - Next.js example app demonstrating full integration (API route, server actions, upload progress).
 
-[Unreleased]: https://github.com/manasdevs/file-manager/compare/v1.3.6...HEAD
+[Unreleased]: https://github.com/manasdevs/file-manager/compare/v1.5.6...HEAD
+[1.5.6]: https://github.com/manasdevs/file-manager/compare/v1.4.6...v1.5.6
+[1.4.6]: https://github.com/manasdevs/file-manager/compare/v1.3.6...v1.4.6
 [1.3.6]: https://github.com/manasdevs/file-manager/compare/v1.2.6...v1.3.6
 [1.2.6]: https://github.com/manasdevs/file-manager/compare/v1.1.6...v1.2.6
 [1.1.6]: https://github.com/manasdevs/file-manager/compare/v1.0.5...v1.1.6
