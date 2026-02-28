@@ -73,6 +73,7 @@ export type { S3Preset } from "./adapters/s3-presets.js";
 export { S3StorageAdapter } from "./adapters/s3.js";
 export { AzureBlobStorageAdapter } from "./adapters/azure.js";
 export { FirebaseStorageAdapter } from "./adapters/firebase.js";
+export { RouterStorageAdapter } from "./adapters/router.js";
 
 // Errors
 export {

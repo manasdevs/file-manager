@@ -456,6 +456,83 @@ const fm = await createFileManager({
 | IBM Cloud            | `ibm`                 | `https://s3.{region}.cloud-object-storage.appdomain.cloud`          |
 | Supabase             | `supabase`            | `https://{project_ref}.supabase.co/storage/v1/s3`                   |
 
+---
+
+## Per-Slug Storage Overrides
+
+Each slug can use a **completely different storage backend** by adding a `storage` key directly to the slug config. Slugs without their own `storage` inherit the top-level default.
+
+```ts
+const fm = await createFileManager({
+  basePath: "./storage",          // local fallback root
+
+  // Global default → local filesystem
+  // storage: { provider: "local" },  ← implicit default
+
+  slugs: {
+    // Images go to AWS S3
+    images: {
+      path: "images",
+      allowedTypes: ["image/jpeg", "image/png"],
+      storage: {
+        provider: "s3",
+        bucket: "my-images-bucket",
+        region: "us-east-1",
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+        },
+      },
+    },
+
+    // Avatars go to Backblaze B2
+    avatars: {
+      path: "avatars",
+      storage: {
+        provider: "s3",
+        preset: "backblaze",
+        bucket: "my-avatars-bucket",
+        credentials: {
+          accessKeyId: process.env.B2_KEY_ID!,
+          secretAccessKey: process.env.B2_APP_KEY!,
+        },
+      },
+    },
+
+    // Documents go to Azure Blob Storage
+    documents: {
+      path: "documents",
+      storage: {
+        provider: "azure",
+        container: "documents",
+        connectionString: process.env.AZURE_STORAGE_CONNECTION_STRING!,
+      },
+    },
+
+    // Temporary uploads stay on local disk (inherits global default)
+    uploads: {
+      path: "uploads",
+      maxSizeBytes: 50 * 1024 * 1024,
+      // No `storage` key → falls back to local filesystem
+    },
+  },
+});
+```
+
+### How it works
+
+Under the hood, `createFileManager` instantiates a dedicated adapter for each slug that declares its own `storage`. A **`RouterStorageAdapter`** is then placed in front of all operations and transparently forwards every file I/O call to the correct backend based on the path key.
+
+- **Single-key operations** (`readFile`, `writeFile`, `deleteFile`, …) — routed to the slug's adapter.
+- **Two-key operations** (`copyFile`, `moveFile`) — if source and destination live in the same adapter, the native adapter method is called directly. If they span different adapters (e.g. moving a file from S3 to Azure), the router reads the file from the source and writes it to the destination automatically.
+- **Metadata & cleanup** — each slug's `.manasfm.index.json` is stored in its own storage backend alongside the slug's files.
+
+> **Tip:** The `RouterStorageAdapter` is exported for advanced scenarios where you need to compose adapters yourself:
+>
+> ```ts
+> import { RouterStorageAdapter } from "manas-fm";
+> ```
+
 ## API Reference
 
 ### File Operations

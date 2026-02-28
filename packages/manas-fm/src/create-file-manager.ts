@@ -26,6 +26,7 @@ import { MetadataManager } from "./core/metadata-manager.js";
 import { CleanupManager } from "./core/cleanup-manager.js";
 import { Logger } from "./core/logger.js";
 import { LocalStorageAdapter } from "./adapters/local.js";
+import { RouterStorageAdapter } from "./adapters/router.js";
 import { createUploadFile } from "./operations/upload.js";
 import { createDownloadFile } from "./operations/download.js";
 import { createListFiles } from "./operations/list-files.js";
@@ -96,8 +97,23 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
   // Validate and resolve config
   const validatedConfig = await validateConfig(config);
 
-  // Create the storage adapter
-  const storage = await createStorageAdapter(validatedConfig.storage, validatedConfig.basePath);
+  // Create the global storage adapter
+  const globalStorage = await createStorageAdapter(
+    validatedConfig.storage,
+    validatedConfig.basePath,
+  );
+
+  // Build per-slug adapters for slugs that override the global storage
+  const slugAdapters = new Map<string, StorageAdapter>();
+  for (const [slug, slugConfig] of Object.entries(validatedConfig.slugs)) {
+    // Only create a separate adapter when the slug has its own storage config
+    if (slugConfig.storage !== validatedConfig.storage) {
+      slugAdapters.set(
+        slug,
+        await createStorageAdapter(slugConfig.storage, slugConfig.path),
+      );
+    }
+  }
 
   // Create core services
   const logger = new Logger({
@@ -105,6 +121,14 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
     basePath: validatedConfig.basePath,
   });
   const pathResolver = new PathResolver(validatedConfig);
+
+  // The routing adapter transparently forwards each file operation to the
+  // correct backend — per-slug override when available, global otherwise.
+  const storage =
+    slugAdapters.size > 0
+      ? new RouterStorageAdapter(globalStorage, slugAdapters, pathResolver)
+      : globalStorage;
+
   const metadataManager = new MetadataManager(pathResolver, logger, storage);
   const cleanupManager = new CleanupManager(
     validatedConfig,
@@ -135,7 +159,8 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
   logger.info("File manager initialized", {
     basePath: validatedConfig.basePath,
     slugCount: Object.keys(validatedConfig.slugs).length,
-    storageType: storage.type,
+    storageType: globalStorage.type,
+    slugStorageOverrides: slugAdapters.size > 0 ? slugAdapters.size : undefined,
   });
 
   return {

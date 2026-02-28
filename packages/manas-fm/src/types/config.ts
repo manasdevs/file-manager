@@ -172,6 +172,12 @@ export interface SlugConfig {
   compression?: SlugCompressionConfig;
   zip?: SlugZipConfig;
   fileNaming?: SlugFileNamingConfig;
+  /**
+   * Override the storage backend for this specific slug.
+   * When set, files for this slug are stored using this provider
+   * instead of the global storage configuration.
+   */
+  storage?: StorageConfig;
 }
 
 /** Top-level configuration passed to createFileManager */
@@ -233,6 +239,8 @@ export interface ResolvedSlugConfig {
   compression: ResolvedCompressionConfig | null;
   zip: ResolvedZipConfig | null;
   fileNaming: ResolvedFileNamingConfig;
+  /** The resolved storage config for this slug (may differ from global) */
+  storage: ValidatedStorageConfig;
 }
 
 export interface ResolvedCompressionConfig {

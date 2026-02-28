@@ -6,9 +6,10 @@ import { ValidationError } from "../errors/validation-error.js";
 import { PermissionError } from "../errors/permission-error.js";
 
 function createMockConfig(basePath: string): ValidatedConfig {
+  const localStorage = { provider: "local" as const, isCloud: false, config: { provider: "local" as const } };
   return {
     basePath,
-    storage: { provider: "local", isCloud: false, config: { provider: "local" } },
+    storage: localStorage,
     logging: { enabled: false, level: "info", filePath: undefined },
     cleanup: { enabled: false, intervalHours: 24 },
     versioning: { enabledByDefault: false, maxVersions: 10 },
@@ -22,6 +23,7 @@ function createMockConfig(basePath: string): ValidatedConfig {
         compression: null,
         zip: null,
         fileNaming: { strategy: "original" },
+        storage: localStorage,
       },
       images: {
         path: path.join(basePath, "images"),
@@ -42,6 +44,7 @@ function createMockConfig(basePath: string): ValidatedConfig {
           outputPath: "archive",
         },
         fileNaming: { strategy: "original" },
+        storage: localStorage,
       },
     },
   };

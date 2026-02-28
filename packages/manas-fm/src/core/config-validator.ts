@@ -121,10 +121,26 @@ export async function validateConfig(config: ManasFmConfig): Promise<ValidatedCo
       );
     }
 
-    resolvedSlugs[key] = {
-      path: isCloud
+    // ── Per-slug storage resolution ──
+    // If the slug declares its own storage, validate and use it.
+    // Otherwise inherit the global storage configuration.
+    let slugStorage: ValidatedStorageConfig;
+    let slugPath: string;
+    if (slugConfig.storage) {
+      slugStorage = validateStorageConfig(slugConfig.storage);
+      // Path is resolved relative to the slug's own storage root, not the global basePath.
+      slugPath = slugStorage.isCloud
+        ? normalizeCloudPrefix(slugConfig.path)
+        : path.resolve(slugConfig.path);
+    } else {
+      slugStorage = storageConfig;
+      slugPath = isCloud
         ? joinCloudKeys(basePath, slugConfig.path)
-        : path.resolve(basePath, slugConfig.path),
+        : path.resolve(basePath, slugConfig.path);
+    }
+
+    resolvedSlugs[key] = {
+      path: slugPath,
       allowedTypes: slugConfig.allowedTypes ?? [],
       maxSizeBytes: slugConfig.maxSizeBytes ?? Infinity,
       retentionDays: slugConfig.retentionDays ?? null,
@@ -132,6 +148,7 @@ export async function validateConfig(config: ManasFmConfig): Promise<ValidatedCo
       compression,
       zip,
       fileNaming: { strategy: fileNamingStrategy },
+      storage: slugStorage,
     };
   }
 

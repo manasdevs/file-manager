@@ -174,6 +174,42 @@ The `StorageAdapter` interface has these methods:
 | `compression`   | `SlugCompressionConfig`| No       | Per-slug compression config              |
 | `zip`           | `SlugZipConfig`        | No       | Per-slug zip config                      |
 | `fileNaming`    | `SlugFileNamingConfig` | No       | Per-slug file naming strategy override   |
+| `storage`       | `StorageConfig`        | No       | Per-slug storage backend override        |
+
+### Per-Slug Storage Overrides
+
+Each slug can use a completely different storage backend by adding a `storage` key. Slugs without their own `storage` inherit the top-level default.
+
+```typescript
+const fm = await createFileManager({
+  basePath: "./storage",        // local fallback root
+  slugs: {
+    images: {
+      path: "images",
+      storage: {                // store images in AWS S3
+        provider: "s3",
+        bucket: "my-images",
+        region: "us-east-1",
+        credentials: { accessKeyId: "...", secretAccessKey: "..." },
+      },
+    },
+    avatars: {
+      path: "avatars",
+      storage: {                // store avatars in Backblaze B2
+        provider: "s3",
+        preset: "backblaze",
+        bucket: "my-avatars",
+        credentials: { accessKeyId: "...", secretAccessKey: "..." },
+      },
+    },
+    uploads: {
+      path: "uploads",          // no storage key → uses local disk
+    },
+  },
+});
+```
+
+A `RouterStorageAdapter` is created internally and routes every file I/O call to the correct backend. Cross-storage `moveFile`/`copyFile` operations are handled automatically via read → write.
 
 ## Core Types
 

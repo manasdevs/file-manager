@@ -16,11 +16,23 @@ export interface ResolvedFilePath {
 }
 
 export class PathResolver {
-  /** True when the storage backend is cloud / remote */
+  /** True when the global storage backend is cloud / remote */
   private readonly isCloud: boolean;
 
   constructor(private readonly config: ValidatedConfig) {
     this.isCloud = config.storage.isCloud;
+  }
+
+  /** Returns true if the given slug uses a different storage from the global one */
+  private hasPerSlugStorage(slug: string): boolean {
+    const slugCfg = this.config.slugs[slug];
+    if (!slugCfg) return false;
+    return slugCfg.storage !== this.config.storage;
+  }
+
+  /** Returns the effective isCloud flag for a specific slug */
+  private slugIsCloud(slug: string): boolean {
+    return this.config.slugs[slug]?.storage?.isCloud ?? this.isCloud;
   }
 
   // ─── Public helpers ─────────────────────────────────────────
@@ -103,8 +115,8 @@ export class PathResolver {
     const { slug, name } = identifier;
     const slugConfig = this.getSlugConfig(slug);
     const absolutePath = this.join(slugConfig.path, name);
-    this.assertWithinBasePath(absolutePath);
-    if (!this.isCloud) {
+    this.assertWithinBasePath(absolutePath, slug);
+    if (!this.slugIsCloud(slug)) {
       this.assertWithinSlugPath(absolutePath, slugConfig.path, slug);
     }
     return {
@@ -126,8 +138,8 @@ export class PathResolver {
     const { slug, subPath } = identifier;
     const slugConfig = this.getSlugConfig(slug);
     const absolutePath = subPath ? this.join(slugConfig.path, subPath) : slugConfig.path;
-    this.assertWithinBasePath(absolutePath);
-    if (!this.isCloud && subPath) {
+    this.assertWithinBasePath(absolutePath, slug);
+    if (!this.slugIsCloud(slug) && subPath) {
       this.assertWithinSlugPath(absolutePath, slugConfig.path, slug);
     }
     return absolutePath;
@@ -168,7 +180,8 @@ export class PathResolver {
     const fileName = this.basename(filePath);
     const ext = this.extname(fileName);
     const nameWithoutExt = fileName.slice(0, fileName.length - ext.length);
-    const compressedDir = this.isCloud
+    const effectiveIsCloud = slugConfig.storage.isCloud;
+    const compressedDir = effectiveIsCloud
       ? this.join(dir, slugConfig.compression.outputPath)
       : path.resolve(dir, slugConfig.compression.outputPath);
     const newExt = `.${slugConfig.compression.format}`;
@@ -182,14 +195,42 @@ export class PathResolver {
     }
     const dir = this.dirname(filePath);
     const fileName = this.basename(filePath);
-    const zipDir = this.isCloud
+    const effectiveIsCloud = slugConfig.storage.isCloud;
+    const zipDir = effectiveIsCloud
       ? this.join(dir, slugConfig.zip.outputPath)
       : path.resolve(dir, slugConfig.zip.outputPath);
     return this.join(zipDir, `${fileName}.zip`);
   }
 
-  /** Validate that a resolved path is within basePath (prevent path traversal) */
-  assertWithinBasePath(resolvedPath: string): void {
+  /** Validate that a resolved path is within basePath (prevent path traversal).
+   *  When `slug` is provided and has per-slug storage, validates against the slug's
+   *  own root instead of the global basePath. */
+  assertWithinBasePath(resolvedPath: string, slug?: string): void {
+    // For per-slug storage, validate against the slug's own root path
+    if (slug && this.hasPerSlugStorage(slug)) {
+      const slugCfg = this.config.slugs[slug]!;
+      if (slugCfg.storage.isCloud) {
+        const normPath = resolvedPath.replace(/\\/g, "/");
+        const normBase = slugCfg.path.replace(/\\/g, "/").replace(/\/+$/, "");
+        if (normBase && !normPath.startsWith(normBase)) {
+          throw new PermissionError(
+            "Path traversal detected: path is outside the slug's storage prefix",
+            { path: resolvedPath, slugPath: slugCfg.path },
+          );
+        }
+      } else {
+        const normalized = path.resolve(resolvedPath);
+        const normalizedBase = path.resolve(slugCfg.path);
+        if (!normalized.startsWith(normalizedBase + path.sep) && normalized !== normalizedBase) {
+          throw new PermissionError(
+            "Path traversal detected: path is outside the slug's storage directory",
+            { path: resolvedPath, slugPath: slugCfg.path },
+          );
+        }
+      }
+      return;
+    }
+
     if (this.isCloud) {
       // For cloud storage, just ensure the key starts with the basePath prefix
       const normPath = resolvedPath.replace(/\\/g, "/");
@@ -226,21 +267,19 @@ export class PathResolver {
 
   /** Determine which slug a given path belongs to (reverse lookup) */
   resolveSlugFromPath(absolutePath: string): string | null {
-    if (this.isCloud) {
-      const normPath = absolutePath.replace(/\\/g, "/");
-      for (const [slug, slugConfig] of Object.entries(this.config.slugs)) {
+    const normPath = absolutePath.replace(/\\/g, "/");
+    for (const [slug, slugConfig] of Object.entries(this.config.slugs)) {
+      if (slugConfig.storage.isCloud) {
         const slugBase = slugConfig.path.replace(/\\/g, "/");
         if (normPath.startsWith(slugBase + "/") || normPath === slugBase) {
           return slug;
         }
-      }
-      return null;
-    }
-    const normalized = path.resolve(absolutePath);
-    for (const [slug, slugConfig] of Object.entries(this.config.slugs)) {
-      const slugBase = path.resolve(slugConfig.path);
-      if (normalized.startsWith(slugBase + path.sep) || normalized === slugBase) {
-        return slug;
+      } else {
+        const normalized = path.resolve(absolutePath);
+        const slugBase = path.resolve(slugConfig.path);
+        if (normalized.startsWith(slugBase + path.sep) || normalized === slugBase) {
+          return slug;
+        }
       }
     }
     return null;
