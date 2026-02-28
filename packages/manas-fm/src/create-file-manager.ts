@@ -18,6 +18,12 @@ import type {
   VersionInfo,
   OperationResult,
 } from "./types/results.js";
+import type {
+  ByteaPackInput,
+  ByteaPackOptions,
+  ByteaPackResult,
+  ByteaUnpackResult,
+} from "./bytea/types.js";
 import type { OperationContext } from "./types/internal.js";
 import type { StorageAdapter } from "./adapters/storage-adapter.js";
 import { validateConfig } from "./core/config-validator.js";
@@ -38,6 +44,7 @@ import { createRenameFile } from "./operations/rename.js";
 import { createMoveFile } from "./operations/move.js";
 import { createDuplicateFile } from "./operations/duplicate.js";
 import { createListVersions, createRestoreVersion } from "./operations/versioning.js";
+import { createByteaPack, createByteaUnpack } from "./operations/bytea-pack.js";
 
 /** The file manager instance returned by createFileManager */
 export interface FileManager {
@@ -69,6 +76,12 @@ export interface FileManager {
   ) => Promise<OperationResult>;
   listVersions: (identifier: FileIdentifier) => Promise<VersionInfo[]>;
   restoreVersion: (identifier: FileIdentifier, versionId: string) => Promise<OperationResult>;
+  byteaPack: (
+    slug: string,
+    file: FileInput | ByteaPackInput,
+    options?: ByteaPackOptions,
+  ) => Promise<ByteaPackResult>;
+  byteaUnpack: (packed: Buffer) => Promise<ByteaUnpackResult>;
 }
 
 /**
@@ -173,6 +186,8 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
     duplicateFile: createDuplicateFile(ctx),
     listVersions: createListVersions(ctx),
     restoreVersion: createRestoreVersion(ctx),
+    byteaPack: createByteaPack(ctx),
+    byteaUnpack: createByteaUnpack(ctx),
   };
 }
 

@@ -75,6 +75,17 @@ export { AzureBlobStorageAdapter } from "./adapters/azure.js";
 export { FirebaseStorageAdapter } from "./adapters/firebase.js";
 export { RouterStorageAdapter } from "./adapters/router.js";
 
+// Bytea Pack — standalone utilities
+export { byteaPack, byteaUnpack, BYTEA_PACK_VERSION } from "./bytea/index.js";
+export type {
+  ByteaPackSource,
+  ByteaPackInput,
+  ByteaPackOptions,
+  ByteaPackResult,
+  ByteaManifest,
+  ByteaUnpackResult,
+} from "./bytea/index.js";
+
 // Errors
 export {
   ManasFmError,

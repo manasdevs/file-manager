@@ -50,3 +50,13 @@ export type {
   VersionInfo,
   OperationResult,
 } from "./results.js";
+
+// Bytea Pack types
+export type {
+  ByteaPackSource,
+  ByteaPackInput,
+  ByteaPackOptions,
+  ByteaPackResult,
+  ByteaManifest,
+  ByteaUnpackResult,
+} from "../bytea/types.js";
