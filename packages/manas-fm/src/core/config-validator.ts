@@ -2,10 +2,12 @@ import * as path from "node:path";
 import type {
   ManasFmConfig,
   ValidatedConfig,
+  ValidatedStorageConfig,
   ResolvedSlugConfig,
   ResolvedCompressionConfig,
   ResolvedZipConfig,
   FileNamingStrategy,
+  StorageConfig,
 } from "../types/config.js";
 import { ConfigError } from "../errors/config-error.js";
 
@@ -27,7 +29,14 @@ export async function validateConfig(config: ManasFmConfig): Promise<ValidatedCo
   if (!config.basePath || typeof config.basePath !== "string") {
     throw new ConfigError("basePath is required and must be a non-empty string");
   }
-  const basePath = path.resolve(config.basePath);
+
+  // ── Resolve storage configuration ──
+  const storageConfig = validateStorageConfig(config.storage);
+  const isCloud = storageConfig.isCloud;
+
+  // For local storage, basePath is a filesystem directory.
+  // For cloud storage, basePath is a key prefix (no path.resolve).
+  const basePath = isCloud ? normalizeCloudPrefix(config.basePath) : path.resolve(config.basePath);
 
   if (!config.slugs || typeof config.slugs !== "object") {
     throw new ConfigError("slugs is required and must be an object");
@@ -113,7 +122,9 @@ export async function validateConfig(config: ManasFmConfig): Promise<ValidatedCo
     }
 
     resolvedSlugs[key] = {
-      path: path.resolve(basePath, slugConfig.path),
+      path: isCloud
+        ? joinCloudKeys(basePath, slugConfig.path)
+        : path.resolve(basePath, slugConfig.path),
       allowedTypes: slugConfig.allowedTypes ?? [],
       maxSizeBytes: slugConfig.maxSizeBytes ?? Infinity,
       retentionDays: slugConfig.retentionDays ?? null,
@@ -157,9 +168,81 @@ export async function validateConfig(config: ManasFmConfig): Promise<ValidatedCo
 
   return {
     basePath,
+    storage: storageConfig,
     logging,
     cleanup,
     versioning,
     slugs: resolvedSlugs,
   };
+}
+
+// ── Storage config validation ─────────────────────────────────
+
+function validateStorageConfig(storage: StorageConfig | undefined): ValidatedStorageConfig {
+  if (!storage || storage.provider === "local") {
+    return {
+      provider: "local",
+      isCloud: false,
+      config: storage ?? { provider: "local" },
+    };
+  }
+
+  switch (storage.provider) {
+    case "s3": {
+      if (!storage.bucket) {
+        throw new ConfigError("S3 storage requires a 'bucket' name");
+      }
+      return { provider: "s3", isCloud: true, config: storage };
+    }
+
+    case "azure": {
+      if (!storage.container) {
+        throw new ConfigError("Azure storage requires a 'container' name");
+      }
+      if (!storage.connectionString && !storage.accountName) {
+        throw new ConfigError("Azure storage requires either 'connectionString' or 'accountName'");
+      }
+      return { provider: "azure", isCloud: true, config: storage };
+    }
+
+    case "firebase": {
+      if (!storage.bucket) {
+        throw new ConfigError("Firebase storage requires a 'bucket' name");
+      }
+      return { provider: "firebase", isCloud: true, config: storage };
+    }
+
+    case "custom": {
+      if (!storage.adapter) {
+        throw new ConfigError("Custom storage requires an 'adapter' implementation");
+      }
+      // Determine if custom adapter is cloud-like (not local)
+      const isCloud = storage.adapter.type !== "local";
+      return { provider: "custom", isCloud, config: storage };
+    }
+
+    default:
+      throw new ConfigError(
+        `Unknown storage provider: ${(storage as { provider: string }).provider}`,
+      );
+  }
+}
+
+// ── Cloud key helpers ─────────────────────────────────────────
+
+/** Normalize a cloud key prefix: strip leading slashes, ensure trailing slash */
+function normalizeCloudPrefix(prefix: string): string {
+  let key = prefix.replace(/\\/g, "/").replace(/^\/+/, "");
+  // Remove "./" prefix common in local paths
+  if (key.startsWith("./")) key = key.slice(2);
+  if (key && !key.endsWith("/")) key += "/";
+  return key;
+}
+
+/** Join cloud key segments with `/` separator */
+function joinCloudKeys(...parts: string[]): string {
+  return parts
+    .map((p) => p.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, ""))
+    .filter(Boolean)
+    .join("/");
 }

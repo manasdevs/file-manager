@@ -7,61 +7,133 @@ import { PermissionError } from "../errors/permission-error.js";
 export const METADATA_FILE = ".manasfm.index.json";
 
 export interface ResolvedFilePath {
+  /** The absolute local path OR cloud key */
   absolutePath: string;
+  /** Parent directory or prefix */
   directory: string;
   fileName: string;
   slug: string | null;
 }
 
 export class PathResolver {
-  constructor(private readonly config: ValidatedConfig) {}
+  /** True when the storage backend is cloud / remote */
+  private readonly isCloud: boolean;
 
-  /** Resolve a FileIdentifier to an absolute file path */
+  constructor(private readonly config: ValidatedConfig) {
+    this.isCloud = config.storage.isCloud;
+  }
+
+  // ─── Public helpers ─────────────────────────────────────────
+
+  /** Join path segments appropriately for the current storage mode */
+  join(...segments: string[]): string {
+    if (this.isCloud) {
+      return segments
+        .map((s) => s.replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, ""))
+        .filter(Boolean)
+        .join("/");
+    }
+    return path.join(...segments);
+  }
+
+  /** Get the directory/prefix of a key */
+  dirname(key: string): string {
+    if (this.isCloud) {
+      const parts = key.replace(/\\/g, "/").split("/");
+      parts.pop();
+      return parts.join("/");
+    }
+    return path.dirname(key);
+  }
+
+  /** Get the file name from a key */
+  basename(key: string): string {
+    if (this.isCloud) {
+      const parts = key.replace(/\\/g, "/").split("/");
+      return parts[parts.length - 1] || "";
+    }
+    return path.basename(key);
+  }
+
+  /** Get the extension from a key */
+  extname(key: string): string {
+    const name = this.basename(key);
+    const dotIdx = name.lastIndexOf(".");
+    return dotIdx > 0 ? name.slice(dotIdx) : "";
+  }
+
+  /** Resolve a key to an absolute path. For cloud, this is an identity (keys are already absolute). */
+  resolve(...segments: string[]): string {
+    if (this.isCloud) {
+      return this.join(...segments);
+    }
+    return path.resolve(...segments);
+  }
+
+  /** Get relative path from a base to a target */
+  relative(from: string, to: string): string {
+    if (this.isCloud) {
+      // Strip the `from` prefix from `to`
+      const normFrom = from.replace(/\\/g, "/").replace(/\/+$/, "") + "/";
+      const normTo = to.replace(/\\/g, "/");
+      if (normTo.startsWith(normFrom)) {
+        return normTo.slice(normFrom.length);
+      }
+      return normTo;
+    }
+    return path.relative(from, to);
+  }
+
+  // ─── Identifier Resolution ─────────────────────────────────
+
+  /** Resolve a FileIdentifier to a path/key */
   resolveFilePath(identifier: FileIdentifier): ResolvedFilePath {
     if (typeof identifier === "string") {
-      const absolutePath = path.resolve(identifier);
+      const absolutePath = this.resolve(identifier);
       this.assertWithinBasePath(absolutePath);
       const slug = this.resolveSlugFromPath(absolutePath);
       return {
         absolutePath,
-        directory: path.dirname(absolutePath),
-        fileName: path.basename(absolutePath),
+        directory: this.dirname(absolutePath),
+        fileName: this.basename(absolutePath),
         slug,
       };
     }
 
     const { slug, name } = identifier;
     const slugConfig = this.getSlugConfig(slug);
-    const absolutePath = path.resolve(slugConfig.path, name);
+    const absolutePath = this.join(slugConfig.path, name);
     this.assertWithinBasePath(absolutePath);
-    this.assertWithinSlugPath(absolutePath, slugConfig.path, slug);
+    if (!this.isCloud) {
+      this.assertWithinSlugPath(absolutePath, slugConfig.path, slug);
+    }
     return {
       absolutePath,
-      directory: path.dirname(absolutePath),
-      fileName: path.basename(absolutePath),
+      directory: this.dirname(absolutePath),
+      fileName: this.basename(absolutePath),
       slug,
     };
   }
 
-  /** Resolve a FolderIdentifier to an absolute directory path */
+  /** Resolve a FolderIdentifier to a path/key */
   resolveFolderPath(identifier: FolderIdentifier): string {
     if (typeof identifier === "string") {
-      const absolutePath = path.resolve(identifier);
+      const absolutePath = this.resolve(identifier);
       this.assertWithinBasePath(absolutePath);
       return absolutePath;
     }
 
     const { slug, subPath } = identifier;
     const slugConfig = this.getSlugConfig(slug);
-    const absolutePath = subPath ? path.resolve(slugConfig.path, subPath) : slugConfig.path;
+    const absolutePath = subPath ? this.join(slugConfig.path, subPath) : slugConfig.path;
     this.assertWithinBasePath(absolutePath);
-    if (subPath) {
+    if (!this.isCloud && subPath) {
       this.assertWithinSlugPath(absolutePath, slugConfig.path, slug);
     }
     return absolutePath;
   }
 
-  /** Get the slug's base directory */
+  /** Get the slug's base directory / prefix */
   getSlugBasePath(slug: string): string {
     return this.getSlugConfig(slug).path;
   }
@@ -75,14 +147,14 @@ export class PathResolver {
     return slugConfig;
   }
 
-  /** Get the metadata index file path for a directory */
+  /** Get the metadata index file path/key for a directory */
   getMetadataPath(dirPath: string): string {
-    return path.join(dirPath, METADATA_FILE);
+    return this.join(dirPath, METADATA_FILE);
   }
 
   /** Get the version file path: photo.jpg + version 3 -> photo.v3.jpg */
   getVersionPath(filePath: string, versionNumber: number): string {
-    const ext = path.extname(filePath);
+    const ext = this.extname(filePath);
     const nameWithoutExt = filePath.slice(0, filePath.length - ext.length);
     return `${nameWithoutExt}.v${versionNumber}${ext}`;
   }
@@ -92,13 +164,15 @@ export class PathResolver {
     if (!slugConfig.compression) {
       throw new ValidationError("Compression is not configured for this slug");
     }
-    const dir = path.dirname(filePath);
-    const fileName = path.basename(filePath);
-    const ext = path.extname(fileName);
+    const dir = this.dirname(filePath);
+    const fileName = this.basename(filePath);
+    const ext = this.extname(fileName);
     const nameWithoutExt = fileName.slice(0, fileName.length - ext.length);
-    const compressedDir = path.resolve(dir, slugConfig.compression.outputPath);
+    const compressedDir = this.isCloud
+      ? this.join(dir, slugConfig.compression.outputPath)
+      : path.resolve(dir, slugConfig.compression.outputPath);
     const newExt = `.${slugConfig.compression.format}`;
-    return path.join(compressedDir, `${nameWithoutExt}${newExt}`);
+    return this.join(compressedDir, `${nameWithoutExt}${newExt}`);
   }
 
   /** Get the zip variant path */
@@ -106,14 +180,28 @@ export class PathResolver {
     if (!slugConfig.zip) {
       throw new ValidationError("Zip is not configured for this slug");
     }
-    const dir = path.dirname(filePath);
-    const fileName = path.basename(filePath);
-    const zipDir = path.resolve(dir, slugConfig.zip.outputPath);
-    return path.join(zipDir, `${fileName}.zip`);
+    const dir = this.dirname(filePath);
+    const fileName = this.basename(filePath);
+    const zipDir = this.isCloud
+      ? this.join(dir, slugConfig.zip.outputPath)
+      : path.resolve(dir, slugConfig.zip.outputPath);
+    return this.join(zipDir, `${fileName}.zip`);
   }
 
   /** Validate that a resolved path is within basePath (prevent path traversal) */
   assertWithinBasePath(resolvedPath: string): void {
+    if (this.isCloud) {
+      // For cloud storage, just ensure the key starts with the basePath prefix
+      const normPath = resolvedPath.replace(/\\/g, "/");
+      const normBase = this.config.basePath.replace(/\\/g, "/").replace(/\/+$/, "");
+      if (normBase && !normPath.startsWith(normBase)) {
+        throw new PermissionError("Path traversal detected: path is outside the base prefix", {
+          path: resolvedPath,
+          basePath: this.config.basePath,
+        });
+      }
+      return;
+    }
     const normalized = path.resolve(resolvedPath);
     const normalizedBase = path.resolve(this.config.basePath);
     if (!normalized.startsWith(normalizedBase + path.sep) && normalized !== normalizedBase) {
@@ -136,8 +224,18 @@ export class PathResolver {
     }
   }
 
-  /** Determine which slug a given absolute path belongs to (reverse lookup) */
+  /** Determine which slug a given path belongs to (reverse lookup) */
   resolveSlugFromPath(absolutePath: string): string | null {
+    if (this.isCloud) {
+      const normPath = absolutePath.replace(/\\/g, "/");
+      for (const [slug, slugConfig] of Object.entries(this.config.slugs)) {
+        const slugBase = slugConfig.path.replace(/\\/g, "/");
+        if (normPath.startsWith(slugBase + "/") || normPath === slugBase) {
+          return slug;
+        }
+      }
+      return null;
+    }
     const normalized = path.resolve(absolutePath);
     for (const [slug, slugConfig] of Object.entries(this.config.slugs)) {
       const slugBase = path.resolve(slugConfig.path);

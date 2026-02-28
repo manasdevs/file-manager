@@ -1,10 +1,8 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import type { ValidatedConfig } from "../types/config.js";
 import type { MetadataManager } from "./metadata-manager.js";
 import type { PathResolver } from "./path-resolver.js";
 import type { Logger } from "./logger.js";
-import { safeDeleteFile } from "./fs-utils.js";
+import type { StorageAdapter } from "../adapters/storage-adapter.js";
 
 interface CleanupResult {
   filesDeleted: number;
@@ -13,15 +11,16 @@ interface CleanupResult {
 
 export class CleanupManager {
   private running = false;
-  private readonly cleanupMetaPath: string;
+  private readonly cleanupMetaKey: string;
 
   constructor(
     private readonly config: ValidatedConfig,
     private readonly metadataManager: MetadataManager,
     private readonly pathResolver: PathResolver,
     private readonly logger: Logger,
+    private readonly storage: StorageAdapter,
   ) {
-    this.cleanupMetaPath = path.join(config.basePath, ".manasfm.cleanup.json");
+    this.cleanupMetaKey = this.pathResolver.join(config.basePath, ".manasfm.cleanup.json");
   }
 
   /**
@@ -104,26 +103,28 @@ export class CleanupManager {
       if (now < expiresAt) continue;
 
       try {
-        const filePath = path.join(dirPath, fileName);
+        const fileKey = this.pathResolver.join(dirPath, fileName);
 
         // Delete main file
-        await safeDeleteFile(filePath);
+        await this.storage.deleteFile(fileKey);
 
         // Delete versions
         for (const version of entry.versions) {
           const versionPath = this.pathResolver.getVersionPath(
-            filePath,
+            fileKey,
             parseInt(version.versionId.replace("v", ""), 10),
           );
-          await safeDeleteFile(versionPath);
+          await this.storage.deleteFile(versionPath);
         }
 
         // Delete variants
         if (entry.variants.compressed) {
-          await safeDeleteFile(path.resolve(dirPath, entry.variants.compressed));
+          const compressedKey = this.pathResolver.join(dirPath, entry.variants.compressed);
+          await this.storage.deleteFile(compressedKey);
         }
         if (entry.variants.zip) {
-          await safeDeleteFile(path.resolve(dirPath, entry.variants.zip));
+          const zipKey = this.pathResolver.join(dirPath, entry.variants.zip);
+          await this.storage.deleteFile(zipKey);
         }
 
         // Remove metadata
@@ -143,13 +144,11 @@ export class CleanupManager {
 
     // Recurse into subdirectories
     try {
-      const entries = await fs.readdir(dirPath, { withFileTypes: true });
-      for (const entry of entries) {
-        if (entry.isDirectory()) {
-          const subResult = await this.cleanupDirectory(path.join(dirPath, entry.name), slug, now);
-          filesDeleted += subResult.filesDeleted;
-          errors += subResult.errors;
-        }
+      const dirs = await this.storage.listDirectories(dirPath);
+      for (const dir of dirs) {
+        const subResult = await this.cleanupDirectory(dir.key, slug, now);
+        filesDeleted += subResult.filesDeleted;
+        errors += subResult.errors;
       }
     } catch {
       // Directory may not exist yet
@@ -160,8 +159,8 @@ export class CleanupManager {
 
   private async getLastCleanupTime(): Promise<Date | null> {
     try {
-      const content = await fs.readFile(this.cleanupMetaPath, "utf-8");
-      const data = JSON.parse(content) as { lastCleanupTime: string };
+      const buffer = await this.storage.readFile(this.cleanupMetaKey);
+      const data = JSON.parse(buffer.toString("utf-8")) as { lastCleanupTime: string };
       return new Date(data.lastCleanupTime);
     } catch {
       return null;
@@ -170,8 +169,8 @@ export class CleanupManager {
 
   private async setLastCleanupTime(time: Date): Promise<void> {
     try {
-      await fs.writeFile(
-        this.cleanupMetaPath,
+      await this.storage.writeFile(
+        this.cleanupMetaKey,
         JSON.stringify({ lastCleanupTime: time.toISOString() }),
       );
     } catch (error) {

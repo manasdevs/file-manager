@@ -1,9 +1,7 @@
-import * as fs from "node:fs/promises";
-import * as path from "node:path";
 import type { MetadataIndex, FileMetadataEntry } from "../types/internal.js";
 import type { PathResolver } from "./path-resolver.js";
 import type { Logger } from "./logger.js";
-import { atomicWriteFile, ensureDirectory, isNodeError } from "./fs-utils.js";
+import type { StorageAdapter } from "../adapters/storage-adapter.js";
 
 export class MetadataManager {
   /** Per-directory lock to serialize writes */
@@ -12,19 +10,17 @@ export class MetadataManager {
   constructor(
     private readonly pathResolver: PathResolver,
     private readonly logger: Logger,
+    private readonly storage: StorageAdapter,
   ) {}
 
   /** Read the metadata index for a directory. Returns empty structure if none exists. */
   async readIndex(dirPath: string): Promise<MetadataIndex> {
     const metaPath = this.pathResolver.getMetadataPath(dirPath);
     try {
-      const content = await fs.readFile(metaPath, "utf-8");
-      return JSON.parse(content) as MetadataIndex;
-    } catch (error) {
-      if (isNodeError(error) && error.code === "ENOENT") {
-        return { files: {} };
-      }
-      this.logger.warn("Corrupted metadata file, starting fresh", { path: metaPath });
+      const buffer = await this.storage.readFile(metaPath);
+      return JSON.parse(buffer.toString("utf-8")) as MetadataIndex;
+    } catch {
+      // File doesn't exist or is corrupted – start fresh
       return { files: {} };
     }
   }
@@ -32,8 +28,8 @@ export class MetadataManager {
   /** Write the full metadata index for a directory (atomic write). */
   async writeIndex(dirPath: string, index: MetadataIndex): Promise<void> {
     const metaPath = this.pathResolver.getMetadataPath(dirPath);
-    await ensureDirectory(dirPath);
-    await atomicWriteFile(metaPath, JSON.stringify(index, null, 2));
+    await this.storage.ensureDirectory(dirPath);
+    await this.storage.writeFile(metaPath, JSON.stringify(index, null, 2));
   }
 
   /** Add or update metadata for a single file entry (with per-directory locking). */
@@ -105,7 +101,8 @@ export class MetadataManager {
 
   /** Execute a function with a per-directory lock */
   private async withLock(dirPath: string, fn: () => Promise<void>): Promise<void> {
-    const normalizedPath = path.resolve(dirPath);
+    // Normalize: for local paths use the original string key; for cloud use same
+    const normalizedPath = dirPath.replace(/\\/g, "/");
     const existing = this.locks.get(normalizedPath) ?? Promise.resolve();
 
     const newLock = existing.then(fn, fn);
