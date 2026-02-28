@@ -8,13 +8,16 @@ export function generateFileManagerConfig(config: UserConfig, isTypeScript: bool
   const importType = isTypeScript ? "import type " : "import ";
 
   const lines: string[] = [];
+  const isCloud = config.storageProvider !== "local";
 
   // Imports
   lines.push(`import { createFileManager } from "manas-fm";`);
   if (isTypeScript) {
     lines.push(`import type { FileManager, ManasFmConfig } from "manas-fm";`);
   }
-  lines.push(`import * as path from "node:path";`);
+  if (!isCloud) {
+    lines.push(`import * as path from "node:path";`);
+  }
   lines.push(``);
 
   // Config object
@@ -23,10 +26,58 @@ export function generateFileManagerConfig(config: UserConfig, isTypeScript: bool
   } else {
     lines.push(`const config = {`);
   }
-  lines.push(
-    `  basePath: path.join(process.cwd(), ${JSON.stringify(config.storagePath.replace(/^\.\//, ""))}),`,
-  );
+
+  if (isCloud) {
+    lines.push(`  basePath: ${JSON.stringify(config.storagePath.replace(/^\.\//, ""))},`);
+  } else {
+    lines.push(
+      `  basePath: path.join(process.cwd(), ${JSON.stringify(config.storagePath.replace(/^\.\//, ""))}),`,
+    );
+  }
   lines.push(``);
+
+  // Storage config for cloud providers
+  if (isCloud && config.cloudStorage) {
+    const cs = config.cloudStorage;
+    const isS3 = !["azure", "firebase"].includes(cs.provider);
+
+    if (isS3) {
+      lines.push(`  storage: {`);
+      lines.push(`    provider: "s3",`);
+      lines.push(`    s3Provider: "${cs.provider}",`);
+      lines.push(`    bucket: ${JSON.stringify(cs.bucket ?? "")},`);
+      lines.push(`    region: ${JSON.stringify(cs.region ?? "us-east-1")},`);
+      lines.push(`    credentials: {`);
+      lines.push(`      accessKeyId: process.env.S3_ACCESS_KEY_ID ?? "",`);
+      lines.push(`      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY ?? "",`);
+      lines.push(`    },`);
+      if (cs.endpoint) {
+        lines.push(`    endpoint: ${JSON.stringify(cs.endpoint)},`);
+      }
+      if (cs.keyPrefix) {
+        lines.push(`    prefix: ${JSON.stringify(cs.keyPrefix)},`);
+      }
+      lines.push(`  },`);
+    } else if (cs.provider === "azure") {
+      lines.push(`  storage: {`);
+      lines.push(`    provider: "azure",`);
+      lines.push(`    container: ${JSON.stringify(cs.containerName ?? "")},`);
+      lines.push(`    connectionString: process.env.AZURE_STORAGE_CONNECTION_STRING ?? "",`);
+      if (cs.keyPrefix) {
+        lines.push(`    prefix: ${JSON.stringify(cs.keyPrefix)},`);
+      }
+      lines.push(`  },`);
+    } else if (cs.provider === "firebase") {
+      lines.push(`  storage: {`);
+      lines.push(`    provider: "firebase",`);
+      lines.push(`    bucket: ${JSON.stringify(cs.firebaseBucket ?? "")},`);
+      if (cs.keyPrefix) {
+        lines.push(`    prefix: ${JSON.stringify(cs.keyPrefix)},`);
+      }
+      lines.push(`  },`);
+    }
+    lines.push(``);
+  }
 
   // Logging
   if (config.enableLogging) {
