@@ -297,6 +297,72 @@ Restore a previous version of a file.
 await fm.restoreVersion({ slug: "images", name: "photo.jpg" }, "v_1234567890");
 \`\`\`
 
+### byteaPack(slug, file, options?) \u2192 Promise<ByteaPackResult>
+Package a file into a compressed, ZIP-based binary buffer for direct PostgreSQL \`bytea\` storage. Validates MIME type and size against slug config. Accepts \`FileInput\` or \`ByteaPackInput\`.
+\`\`\`typescript
+const packed = await fm.byteaPack("documents", {
+  buffer: fileBuffer,
+  originalName: "report.pdf",
+  mimeType: "application/pdf",
+  size: fileBuffer.length,
+});
+// packed: { buffer, manifest, packedSize, originalSize }
+await sql\`INSERT INTO files (data) VALUES (\${packed.buffer})\`;
+\`\`\`
+
+### byteaUnpack(packed) \u2192 Promise<ByteaUnpackResult>
+Unpack a bytea-packed buffer back into the original file and its manifest.
+\`\`\`typescript
+const { buffer, manifest } = await fm.byteaUnpack(packedBuffer);
+// buffer: original file content
+// manifest: { version, slug?, filename, mimeType, originalSize, createdAt, packedAt, custom? }
+\`\`\`
+
+## Bytea Pack \u2014 Standalone API
+
+Standalone functions that work without a \`FileManager\` instance:
+
+\`\`\`typescript
+import { byteaPack, byteaUnpack } from "manas-fm";
+import type { ByteaPackInput, ByteaPackOptions, ByteaPackResult, ByteaManifest, ByteaUnpackResult } from "manas-fm";
+\`\`\`
+
+### byteaPack(input, options?, slug?) \u2192 Promise<ByteaPackResult>
+Pack a file into a ZIP-based binary buffer. Source can be a \`Buffer\`, file path (\`string\`), or \`Readable\` stream.
+\`\`\`typescript
+const packed = await byteaPack({
+  source: fileBuffer,        // Buffer | string (path) | Readable
+  filename: "report.pdf",
+  mimeType: "application/pdf",
+  custom: { userId: 42 },    // optional metadata
+}, {
+  compressionLevel: 9,       // 0\u20139 (default: 9)
+  custom: { extra: "data" }, // merged with input.custom
+});
+\`\`\`
+
+### byteaUnpack(packed) \u2192 Promise<ByteaUnpackResult>
+Extract the original file and manifest from a bytea pack buffer.
+\`\`\`typescript
+const { buffer, manifest } = await byteaUnpack(packedBuffer);
+\`\`\`
+
+### ByteaManifest
+\`\`\`typescript
+interface ByteaManifest {
+  version: 1;                // format version
+  slug?: string;             // populated when packed via FileManager
+  filename: string;
+  mimeType: string;
+  originalSize: number;
+  createdAt: string;         // ISO-8601
+  packedAt: string;          // ISO-8601
+  custom?: Record<string, unknown>;
+}
+\`\`\`
+
+The pack is a standard ZIP containing \`manifest.json\` and \`payload/<filename>\`. No base64 encoding \u2014 raw binary for optimal \`bytea\` performance.
+
 ## Next.js Integration
 
 ### 1. Create a singleton file manager
@@ -455,6 +521,8 @@ Main entry point: \`manas-fm\`
 - All types: \`ManasFmConfig\`, \`SlugConfig\`, \`FileManager\`, \`FileInput\`, \`UploadResult\`, \`UploadPhase\`, \`UploadProgressEvent\`, \`DownloadResult\`, \`FileInfo\`, \`FileListItem\`, \`FolderListItem\`, \`VersionInfo\`, \`OperationResult\`, \`FileNamingStrategy\`, \`GlobalFileNamingConfig\`, \`SlugFileNamingConfig\`, etc.
 - All errors: \`ManasFmError\`, \`ConfigError\`, \`ValidationError\`, \`FileNotFoundError\`, \`PermissionError\`, \`StorageError\`, \`OperationError\`
 - \`toNextJsHandler\` \u2014 Next.js adapter
+- Bytea Pack: \`byteaPack\`, \`byteaUnpack\`, \`BYTEA_PACK_VERSION\`
+- Bytea types: \`ByteaPackSource\`, \`ByteaPackInput\`, \`ByteaPackOptions\`, \`ByteaPackResult\`, \`ByteaManifest\`, \`ByteaUnpackResult\`
 
 ## Key Concepts
 
@@ -467,5 +535,6 @@ Main entry point: \`manas-fm\`
 7. **\`createFileManager\` is async** \u2014 it validates config and creates directories before returning.
 8. **The Next.js adapter** (\`toNextJsHandler\`) creates GET/POST route handlers from a FileManager instance, routing by URL segment.
 9. **File naming strategies** control how uploaded files are named on disk. Set globally via \`fileNaming: { strategy }\` or per-slug. The \`original\` strategy (default) preserves the uploaded filename. Other strategies (\`uuid\`, \`name-uuid\`, \`name-number\`, \`name-timestamp\`, \`timestamp\`) generate names automatically. The original filename is always stored in metadata.
+10. **Bytea Pack** allows packaging files into compressed ZIP-based binary buffers for direct PostgreSQL \`bytea\` storage. Available as standalone \`byteaPack()\`/\`byteaUnpack()\` utilities or as \`fm.byteaPack()\`/\`fm.byteaUnpack()\` FileManager methods with slug validation. Each pack contains a manifest (metadata) and the original file payload.
 `;
 }

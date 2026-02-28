@@ -18,6 +18,7 @@ A powerful, configuration-first file management package for Node.js and Next.js 
 - **Metadata Management**: Store and retrieve custom metadata for files
 - **Folder Operations**: Create, list, and manage folder structures
 - **ZIP Support**: Create ZIP archives from files and folders
+- **Bytea Pack**: Package files into compressed binary format for direct PostgreSQL `bytea` storage
 - **Cleanup Management**: Automatic cleanup of old file versions
 - **Path Slugging**: Configurable slug generation for organized file storage
 - **Error Handling**: Comprehensive error types for robust error handling
@@ -687,6 +688,105 @@ const zipResult = await fm.zipFolder({
 });
 ```
 
+## Bytea Pack
+
+manas-fm includes built-in **Bytea Pack** support that allows you to package a file into a compressed, ZIP-based binary format and return it as a raw `Buffer` ready for direct storage in PostgreSQL `bytea` columns.
+
+Each pack contains a structured **manifest** (slug, filename, MIME type, timestamps, and custom data) alongside the original file payload, ensuring safe validation and reversible restoration. No base64 encoding is used — the original binary size and performance are preserved.
+
+### Standalone Usage
+
+The standalone `byteaPack()` and `byteaUnpack()` functions work without creating a `FileManager` instance:
+
+```typescript
+import { byteaPack, byteaUnpack } from "manas-fm";
+
+// Pack from a Buffer
+const packed = await byteaPack({
+  source: fileBuffer,
+  filename: "report.pdf",
+  mimeType: "application/pdf",
+  custom: { uploadedBy: "user-123" },
+});
+
+console.log(packed.packedSize); // Compressed size in bytes
+console.log(packed.manifest); // { version, filename, mimeType, originalSize, ... }
+
+// Store directly in PostgreSQL
+await sql`INSERT INTO files (data) VALUES (${packed.buffer})`;
+
+// Later: unpack from the database
+const row = await sql`SELECT data FROM files WHERE id = ${id}`;
+const { buffer, manifest } = await byteaUnpack(row.data);
+// buffer is the original file bytes
+// manifest contains all embedded metadata
+```
+
+### Input Sources
+
+`byteaPack` accepts three source types:
+
+```typescript
+// From a Buffer
+await byteaPack({ source: buffer, filename: "file.txt", mimeType: "text/plain" });
+
+// From a file path
+await byteaPack({ source: "/path/to/file.txt", filename: "file.txt", mimeType: "text/plain" });
+
+// From a Readable stream
+import { createReadStream } from "node:fs";
+await byteaPack({
+  source: createReadStream("/path/to/file.txt"),
+  filename: "file.txt",
+  mimeType: "text/plain",
+});
+```
+
+### Compression Level
+
+```typescript
+// No compression (fastest, largest output)
+await byteaPack({ source, filename, mimeType }, { compressionLevel: 0 });
+
+// Maximum compression (default: 9)
+await byteaPack({ source, filename, mimeType }, { compressionLevel: 9 });
+```
+
+### FileManager Integration
+
+When you have a `FileManager` instance, you can use `fm.byteaPack()` which adds slug-based validation (allowed types, max size) and logging:
+
+```typescript
+const fm = await createFileManager(config);
+
+// Accepts FileInput (from upload) or ByteaPackInput
+const packed = await fm.byteaPack("documents", {
+  buffer: fileBuffer,
+  originalName: "report.pdf",
+  mimeType: "application/pdf",
+  size: fileBuffer.length,
+});
+// packed.manifest.slug === "documents"
+
+// Unpack with manifest slug validation
+const { buffer, manifest } = await fm.byteaUnpack(packed.buffer);
+```
+
+### Types
+
+```typescript
+import type {
+  ByteaPackSource, // Buffer | string | Readable
+  ByteaPackInput, // { source, filename, mimeType, custom? }
+  ByteaPackOptions, // { compressionLevel?, custom? }
+  ByteaPackResult, // { buffer, manifest, packedSize, originalSize }
+  ByteaManifest, // { version, slug?, filename, mimeType, originalSize, createdAt, packedAt, custom? }
+  ByteaUnpackResult, // { buffer, manifest }
+} from "manas-fm";
+```
+
+---
+
 ## Error Handling
 
 manas-fm provides comprehensive error types for robust error handling:
@@ -903,8 +1003,8 @@ MIT © [M Anas Latif](https://m.anaslatif.dev)
 **M Anas Latif**
 
 - Website: [https://m.anaslatif.dev](https://m.anaslatif.dev)
-- Email: contact@anaslatif.com
-- GitHub: [@manasdevs](https://github.com/manasdevs)
+- Email: contact@anaslatif.dev
+- GitHub: [@MAnasLatif](https://github.com/MAnasLatif)
 
 ## Support
 

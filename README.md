@@ -8,7 +8,7 @@ A powerful, configuration-first file management package for Node.js and Next.js 
 
 ## Overview
 
-manas-fm provides a comprehensive solution for file management in Node.js and Next.js applications with features like uploads, downloads, versioning, compression, and more. Supports local filesystem and **12+ cloud storage providers** including AWS S3, GCS, Azure Blob, DigitalOcean Spaces, Backblaze B2, Wasabi, Cloudflare R2, MinIO, Oracle, IBM, Supabase, and Firebase Storage.
+manas-fm provides a comprehensive solution for file management in Node.js and Next.js applications with features like uploads, downloads, versioning, compression, bytea packing for PostgreSQL, and more. Supports local filesystem and **12+ cloud storage providers** including AWS S3, GCS, Azure Blob, DigitalOcean Spaces, Backblaze B2, Wasabi, Cloudflare R2, MinIO, Oracle, IBM, Supabase, and Firebase Storage.
 
 ## Repository Structure
 
@@ -55,6 +55,25 @@ const result = await fm.upload({
   filename: "document.pdf",
   path: "uploads",
 });
+```
+
+### Bytea Pack (PostgreSQL `bytea`)
+
+```typescript
+import { byteaPack, byteaUnpack } from "manas-fm";
+
+// Pack a file into a compressed binary buffer
+const packed = await byteaPack({
+  source: fileBuffer,
+  filename: "report.pdf",
+  mimeType: "application/pdf",
+});
+
+// Store directly in PostgreSQL bytea column
+await sql`INSERT INTO files (data) VALUES (${packed.buffer})`;
+
+// Unpack later
+const { buffer, manifest } = await byteaUnpack(packed.buffer);
 ```
 
 ### Cloud Storage

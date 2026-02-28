@@ -14,7 +14,8 @@ A beautiful, interactive CLI tool to quickly set up [manas-fm](https://github.co
 - 📦 **Complete Integration** - Generates all necessary files and configurations
 - 🎯 **Framework Support** - Optimized for Next.js App Router with API routes and Server Actions
 - 📊 **Upload Progress** - Optional `useUploadProgress()` hook with network + server-side progress tracking
-- 🚀 **Zero Config** - Works out of the box with sensible defaults
+- �️ **Bytea Pack** - Package files into compressed binary format for PostgreSQL `bytea` storage
+- �🚀 **Zero Config** - Works out of the box with sensible defaults
 - 📁 **Smart Structure** - Creates organized storage directories with .gitkeep files
 - 📖 **LLM Documentation** - Generates `docs/llms/manas-fm.llms.txt` for AI-assisted development
 - 🔧 **Package Manager Agnostic** - Supports npm, yarn, and pnpm
