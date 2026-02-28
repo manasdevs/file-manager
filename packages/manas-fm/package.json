@@ -90,9 +90,11 @@
     }
   },
   "dependencies": {
+    "adm-zip": "^0.5.16",
     "archiver": "^7.0.0"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.5",
     "@types/archiver": "^6.0.0",
     "@types/node": "^20.0.0",
     "@typescript-eslint/eslint-plugin": "^7.0.0",
