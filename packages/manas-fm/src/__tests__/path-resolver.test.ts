@@ -8,6 +8,7 @@ import { PermissionError } from "../errors/permission-error.js";
 function createMockConfig(basePath: string): ValidatedConfig {
   return {
     basePath,
+    storage: { provider: "local", isCloud: false, config: { provider: "local" } },
     logging: { enabled: false, level: "info", filePath: undefined },
     cleanup: { enabled: false, intervalHours: 24 },
     versioning: { enabledByDefault: false, maxVersions: 10 },
@@ -20,6 +21,7 @@ function createMockConfig(basePath: string): ValidatedConfig {
         versioning: { enabled: false, maxVersions: 10 },
         compression: null,
         zip: null,
+        fileNaming: { strategy: "original" },
       },
       images: {
         path: path.join(basePath, "images"),
@@ -39,6 +41,7 @@ function createMockConfig(basePath: string): ValidatedConfig {
           keepOriginal: true,
           outputPath: "archive",
         },
+        fileNaming: { strategy: "original" },
       },
     },
   };
