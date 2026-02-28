@@ -1,5 +1,5 @@
 import prompts from "prompts";
-import type { SlugInput, UserConfig } from "../types.js";
+import type { SlugInput, UserConfig, StorageProvider, CloudStorageInput } from "../types.js";
 import type { ProjectInfo } from "../utils/detect-project.js";
 import { info, blank, step, warn } from "../utils/logger.js";
 import styles from "ansi-styles";
@@ -74,11 +74,42 @@ export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig
     {
       type: "text",
       name: "storagePath",
-      message: "Where should files be stored?",
+      message: "Where should files be stored? (local path or cloud key prefix)",
       initial: "./storage",
     },
     { onCancel },
   );
+
+  // ── Storage provider ──
+  const { storageProvider } = await prompts(
+    {
+      type: "select",
+      name: "storageProvider",
+      message: "Storage provider:",
+      choices: [
+        { title: "Local filesystem", value: "local" },
+        { title: "Amazon S3", value: "aws" },
+        { title: "Google Cloud Storage (S3-compat)", value: "gcs" },
+        { title: "DigitalOcean Spaces", value: "digitalocean-spaces" },
+        { title: "Backblaze B2", value: "backblaze" },
+        { title: "Wasabi", value: "wasabi" },
+        { title: "MinIO (self-hosted)", value: "minio" },
+        { title: "Cloudflare R2", value: "cloudflare" },
+        { title: "Oracle Cloud Object Storage", value: "oracle" },
+        { title: "IBM Cloud Object Storage", value: "ibm" },
+        { title: "Supabase Storage", value: "supabase" },
+        { title: "Azure Blob Storage", value: "azure" },
+        { title: "Firebase Storage", value: "firebase" },
+      ],
+      initial: 0,
+    },
+    { onCancel },
+  );
+
+  let cloudStorage: CloudStorageInput | undefined;
+  if (storageProvider !== "local") {
+    cloudStorage = await promptCloudStorage(storageProvider as StorageProvider);
+  }
 
   // ── Logging ──
   const { enableLogging } = await prompts(
@@ -273,6 +304,8 @@ export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig
 
   return {
     storagePath,
+    storageProvider: storageProvider as StorageProvider,
+    cloudStorage,
     enableLogging,
     logLevel,
     enableVersioning,
@@ -282,6 +315,119 @@ export async function gatherUserConfig(project: ProjectInfo): Promise<UserConfig
     setupApiRoute,
     setupServerActions,
     setupUploadProgress,
+  };
+}
+
+async function promptCloudStorage(provider: StorageProvider): Promise<CloudStorageInput> {
+  blank();
+  step(`Configure ${provider} storage`);
+  info(
+    "Credentials will be stored as environment variable references (process.env.*) in your config.",
+  );
+  blank();
+
+  const isS3Compatible = !["azure", "firebase", "local"].includes(provider);
+
+  if (provider === "azure") {
+    const az = await prompts(
+      [
+        {
+          type: "text",
+          name: "containerName",
+          message: "Azure container name:",
+          validate: (v) => !!v || "Required",
+        },
+        {
+          type: "text",
+          name: "keyPrefix",
+          message: "Key prefix (optional, leave blank for none):",
+          initial: "",
+        },
+      ],
+      { onCancel },
+    );
+
+    return {
+      provider,
+      containerName: az.containerName,
+      connectionString: "process.env.AZURE_STORAGE_CONNECTION_STRING",
+      keyPrefix: az.keyPrefix || undefined,
+    };
+  }
+
+  if (provider === "firebase") {
+    const fb = await prompts(
+      [
+        {
+          type: "text",
+          name: "firebaseBucket",
+          message: "Firebase Storage bucket name:",
+          validate: (v) => !!v || "Required",
+        },
+        {
+          type: "text",
+          name: "keyPrefix",
+          message: "Key prefix (optional, leave blank for none):",
+          initial: "",
+        },
+      ],
+      { onCancel },
+    );
+
+    return {
+      provider,
+      firebaseBucket: fb.firebaseBucket,
+      keyPrefix: fb.keyPrefix || undefined,
+    };
+  }
+
+  // S3-compatible providers
+  const s3Config = await prompts(
+    [
+      {
+        type: "text",
+        name: "bucket",
+        message: "Bucket name:",
+        validate: (v) => !!v || "Required",
+      },
+      {
+        type: "text",
+        name: "region",
+        message: "Region:",
+        initial: provider === "gcs" ? "auto" : "us-east-1",
+      },
+      {
+        type: "text",
+        name: "keyPrefix",
+        message: "Key prefix (optional, leave blank for none):",
+        initial: "",
+      },
+    ],
+    { onCancel },
+  );
+
+  let endpoint: string | undefined;
+  if (provider === "minio") {
+    const ep = await prompts(
+      {
+        type: "text",
+        name: "endpoint",
+        message: "MinIO endpoint URL:",
+        initial: "http://localhost:9000",
+      },
+      { onCancel },
+    );
+    endpoint = ep.endpoint;
+  }
+
+  return {
+    provider,
+    bucket: s3Config.bucket,
+    region: s3Config.region,
+    accessKeyId: "process.env.S3_ACCESS_KEY_ID",
+    secretAccessKey: "process.env.S3_SECRET_ACCESS_KEY",
+    endpoint,
+    keyPrefix: s3Config.keyPrefix || undefined,
   };
 }
 
