@@ -464,7 +464,7 @@ Each slug can use a **completely different storage backend** by adding a `storag
 
 ```ts
 const fm = await createFileManager({
-  basePath: "./storage",          // local fallback root
+  basePath: "./storage", // local fallback root
 
   // Global default → local filesystem
   // storage: { provider: "local" },  ← implicit default
@@ -490,7 +490,7 @@ const fm = await createFileManager({
       path: "avatars",
       storage: {
         provider: "s3",
-        preset: "backblaze",
+        s3Provider: "backblaze",
         bucket: "my-avatars-bucket",
         credentials: {
           accessKeyId: process.env.B2_KEY_ID!,

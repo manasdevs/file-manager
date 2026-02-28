@@ -197,7 +197,7 @@ const fm = await createFileManager({
       path: "avatars",
       storage: {                // store avatars in Backblaze B2
         provider: "s3",
-        preset: "backblaze",
+        s3Provider: "backblaze",
         bucket: "my-avatars",
         credentials: { accessKeyId: "...", secretAccessKey: "..." },
       },

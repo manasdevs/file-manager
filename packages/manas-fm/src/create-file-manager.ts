@@ -108,10 +108,7 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
   for (const [slug, slugConfig] of Object.entries(validatedConfig.slugs)) {
     // Only create a separate adapter when the slug has its own storage config
     if (slugConfig.storage !== validatedConfig.storage) {
-      slugAdapters.set(
-        slug,
-        await createStorageAdapter(slugConfig.storage, slugConfig.path),
-      );
+      slugAdapters.set(slug, await createStorageAdapter(slugConfig.storage, slugConfig.path));
     }
   }
 

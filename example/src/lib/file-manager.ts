@@ -72,7 +72,7 @@ const config: ManasFmConfig = {
       },
       storage: {
         provider: "s3",
-        preset: "backblaze",
+        s3Provider: "backblaze",
         bucket: process.env.B2_BUCKET ?? "my-avatars-bucket",
         credentials: {
           accessKeyId: process.env.B2_KEY_ID ?? "",

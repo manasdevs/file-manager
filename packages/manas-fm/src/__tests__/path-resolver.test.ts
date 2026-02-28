@@ -6,7 +6,11 @@ import { ValidationError } from "../errors/validation-error.js";
 import { PermissionError } from "../errors/permission-error.js";
 
 function createMockConfig(basePath: string): ValidatedConfig {
-  const localStorage = { provider: "local" as const, isCloud: false, config: { provider: "local" as const } };
+  const localStorage = {
+    provider: "local" as const,
+    isCloud: false,
+    config: { provider: "local" as const },
+  };
   return {
     basePath,
     storage: localStorage,
