@@ -10,6 +10,7 @@ A powerful, configuration-first file management package for Node.js and Next.js 
 
 - **Configuration-First**: Define your file storage strategy once, use everywhere
 - **Type-Safe**: Full TypeScript support with comprehensive type definitions
+- **Cloud Storage**: Support for AWS S3, GCS, Azure Blob, DigitalOcean Spaces, Backblaze B2, Wasabi, Cloudflare R2, MinIO, Oracle, IBM, Supabase, and Firebase Storage
 - **Next.js Integration**: Built-in adapter for seamless Next.js App Router integration
 - **File Operations**: Upload, download, delete, rename, move, duplicate files
 - **Versioning**: Automatic file versioning with rollback support
@@ -43,15 +44,28 @@ For image compression support, install Sharp:
 npm install sharp
 ```
 
+For cloud storage, install the SDK for your provider:
+
+```bash
+# AWS S3, GCS, DigitalOcean Spaces, Backblaze B2, Wasabi, MinIO, Cloudflare R2, etc.
+npm install @aws-sdk/client-s3 @aws-sdk/lib-storage
+
+# Azure Blob Storage
+npm install @azure/storage-blob
+
+# Firebase Storage
+npm install firebase-admin
+```
+
 ## Quick Start
 
 ### Basic Usage
 
 ```typescript
-import { createFileManager } from 'manas-fm';
+import { createFileManager } from "manas-fm";
 
 const fm = createFileManager({
-  basePath: './storage',
+  basePath: "./storage",
   slugCount: 3,
   enableVersioning: true,
   enableCompression: true,
@@ -60,8 +74,8 @@ const fm = createFileManager({
 // Upload a file
 const result = await fm.upload({
   file: fileBuffer,
-  filename: 'profile.jpg',
-  path: 'users/avatars',
+  filename: "profile.jpg",
+  path: "users/avatars",
 });
 
 console.log(result.url); // users/avatars/abc/profile.jpg
@@ -73,11 +87,11 @@ console.log(result.url); // users/avatars/abc/profile.jpg
 
 ```typescript
 // lib/file-manager.ts
-import { createFileManager } from 'manas-fm';
-import path from 'path';
+import { createFileManager } from "manas-fm";
+import path from "path";
 
 export const fm = createFileManager({
-  basePath: path.join(process.cwd(), 'storage'),
+  basePath: path.join(process.cwd(), "storage"),
   slugCount: 3,
   enableVersioning: true,
   enableCompression: true,
@@ -89,8 +103,8 @@ export const fm = createFileManager({
 
 ```typescript
 // app/api/files/[...all]/route.ts
-import { toNextJsHandler } from 'manas-fm/adapters/nextjs';
-import { fm } from '@/lib/file-manager';
+import { toNextJsHandler } from "manas-fm/adapters/nextjs";
+import { fm } from "@/lib/file-manager";
 
 const handler = toNextJsHandler(fm);
 
@@ -105,18 +119,18 @@ export const PATCH = handler;
 
 ```typescript
 // app/actions.ts
-'use server';
+"use server";
 
-import { fm } from '@/lib/file-manager';
+import { fm } from "@/lib/file-manager";
 
 export async function uploadFile(formData: FormData) {
-  const file = formData.get('file') as File;
+  const file = formData.get("file") as File;
   const buffer = Buffer.from(await file.arrayBuffer());
 
   return await fm.upload({
     file: buffer,
     filename: file.name,
-    path: 'uploads',
+    path: "uploads",
   });
 }
 
@@ -186,8 +200,261 @@ interface FileManagerConfig {
 
   /** Allowed file extensions (default: all allowed) */
   allowedExtensions?: string[];
+
+  /** Cloud storage configuration (optional, defaults to local) */
+  storage?: StorageConfig;
 }
 ```
+
+### Cloud Storage Configuration
+
+manas-fm supports multiple cloud storage providers through a unified `StorageAdapter` interface. Local filesystem is the default — add a `storage` block to use cloud storage instead.
+
+#### AWS S3
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "aws",
+    bucket: "my-bucket",
+    region: "us-east-1",
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  },
+});
+```
+
+#### Google Cloud Storage (S3-compatible)
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "gcs",
+    bucket: "my-gcs-bucket",
+    region: "us-central1",
+    credentials: {
+      accessKeyId: process.env.GCS_ACCESS_KEY!,
+      secretAccessKey: process.env.GCS_SECRET_KEY!,
+    },
+  },
+});
+```
+
+#### DigitalOcean Spaces
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "digitalocean-spaces",
+    bucket: "my-space",
+    region: "nyc3",
+    credentials: {
+      accessKeyId: process.env.DO_SPACES_KEY!,
+      secretAccessKey: process.env.DO_SPACES_SECRET!,
+    },
+  },
+});
+```
+
+#### Backblaze B2
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "backblaze",
+    bucket: "my-b2-bucket",
+    region: "us-west-004",
+    credentials: {
+      accessKeyId: process.env.B2_KEY_ID!,
+      secretAccessKey: process.env.B2_APP_KEY!,
+    },
+  },
+});
+```
+
+#### Wasabi
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "wasabi",
+    bucket: "my-wasabi-bucket",
+    region: "us-east-1",
+    credentials: {
+      accessKeyId: process.env.WASABI_KEY!,
+      secretAccessKey: process.env.WASABI_SECRET!,
+    },
+  },
+});
+```
+
+#### Cloudflare R2
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "cloudflare",
+    bucket: "my-r2-bucket",
+    region: "auto",
+    credentials: {
+      accessKeyId: process.env.CF_R2_KEY!,
+      secretAccessKey: process.env.CF_R2_SECRET!,
+    },
+  },
+});
+```
+
+#### MinIO (Self-hosted)
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "minio",
+    bucket: "my-bucket",
+    region: "us-east-1",
+    endpoint: "http://localhost:9000",
+    credentials: {
+      accessKeyId: process.env.MINIO_ACCESS_KEY!,
+      secretAccessKey: process.env.MINIO_SECRET_KEY!,
+    },
+  },
+});
+```
+
+#### Azure Blob Storage
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "azure",
+    container: "my-container",
+    connectionString: process.env.AZURE_STORAGE_CONNECTION_STRING!,
+  },
+});
+```
+
+#### Firebase Storage
+
+```typescript
+import { initializeApp, cert } from "firebase-admin/app";
+
+// Initialize firebase-admin first
+initializeApp({ credential: cert("./service-account.json") });
+
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "firebase",
+    bucket: "my-project.appspot.com",
+  },
+});
+```
+
+#### Supabase Storage (S3-compatible)
+
+```typescript
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "supabase",
+    bucket: "my-bucket",
+    region: "us-east-1",
+    credentials: {
+      accessKeyId: process.env.SUPABASE_S3_KEY!,
+      secretAccessKey: process.env.SUPABASE_S3_SECRET!,
+    },
+  },
+});
+```
+
+#### Custom StorageAdapter
+
+You can bring your own adapter by implementing the `StorageAdapter` interface:
+
+```typescript
+import type { StorageAdapter } from "manas-fm";
+
+const myAdapter: StorageAdapter = {
+  type: "custom",
+  writeFile: async (key, data) => {
+    /* ... */
+  },
+  readFile: async (key) => {
+    /* ... */
+  },
+  deleteFile: async (key) => {
+    /* ... */
+  },
+  copyFile: async (src, dest) => {
+    /* ... */
+  },
+  moveFile: async (src, dest) => {
+    /* ... */
+  },
+  fileExists: async (key) => {
+    /* ... */
+  },
+  getFileStats: async (key) => {
+    /* ... */
+  },
+  listFiles: async (prefix) => {
+    /* ... */
+  },
+  listDirectories: async (prefix) => {
+    /* ... */
+  },
+  ensureDirectory: async (key) => {
+    /* ... */
+  },
+  createWriteStream: async (key) => {
+    /* ... */
+  },
+  getFileUrl: async (key) => {
+    /* ... */
+  },
+};
+
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "custom",
+    adapter: myAdapter,
+  },
+});
+```
+
+#### Supported S3-Compatible Providers
+
+| Provider             | `s3Provider`          | Endpoint Pattern                                                    |
+| -------------------- | --------------------- | ------------------------------------------------------------------- |
+| AWS S3               | `aws`                 | Default AWS endpoints                                               |
+| Google Cloud Storage | `gcs`                 | `https://storage.googleapis.com`                                    |
+| DigitalOcean Spaces  | `digitalocean-spaces` | `https://{region}.digitaloceanspaces.com`                           |
+| Backblaze B2         | `backblaze`           | `https://s3.{region}.backblazeb2.com`                               |
+| Wasabi               | `wasabi`              | `https://s3.{region}.wasabisys.com`                                 |
+| Cloudflare R2        | `cloudflare`          | `https://{account_id}.r2.cloudflarestorage.com`                     |
+| MinIO                | `minio`               | Custom (user-provided)                                              |
+| Oracle Cloud         | `oracle`              | `https://{namespace}.compat.objectstorage.{region}.oraclecloud.com` |
+| IBM Cloud            | `ibm`                 | `https://s3.{region}.cloud-object-storage.appdomain.cloud`          |
+| Supabase             | `supabase`            | `https://{project_ref}.supabase.co/storage/v1/s3`                   |
 
 ## API Reference
 
@@ -199,12 +466,13 @@ Upload a file to storage.
 
 ```typescript
 const result = await fm.upload({
-  file: buffer,           // Buffer or ArrayBuffer
-  filename: 'photo.jpg',
-  path: 'users/123',      // Optional subfolder
-  metadata: {             // Optional custom metadata
-    uploadedBy: 'user123',
-    tags: ['profile', 'avatar'],
+  file: buffer, // Buffer or ArrayBuffer
+  filename: "photo.jpg",
+  path: "users/123", // Optional subfolder
+  metadata: {
+    // Optional custom metadata
+    uploadedBy: "user123",
+    tags: ["profile", "avatar"],
   },
 });
 ```
@@ -214,7 +482,7 @@ const result = await fm.upload({
 Download a file and its metadata.
 
 ```typescript
-const result = await fm.download('users/123/abc/photo.jpg');
+const result = await fm.download("users/123/abc/photo.jpg");
 ```
 
 #### `delete(filePath: string): Promise<DeleteResult>`
@@ -222,7 +490,7 @@ const result = await fm.download('users/123/abc/photo.jpg');
 Delete a file and all its versions.
 
 ```typescript
-await fm.delete('users/123/abc/photo.jpg');
+await fm.delete("users/123/abc/photo.jpg");
 ```
 
 #### `rename(options: RenameOptions): Promise<RenameResult>`
@@ -231,8 +499,8 @@ Rename a file.
 
 ```typescript
 await fm.rename({
-  oldPath: 'users/123/abc/photo.jpg',
-  newFilename: 'avatar.jpg',
+  oldPath: "users/123/abc/photo.jpg",
+  newFilename: "avatar.jpg",
 });
 ```
 
@@ -242,8 +510,8 @@ Move a file to a different folder.
 
 ```typescript
 await fm.move({
-  sourcePath: 'users/123/abc/photo.jpg',
-  destinationFolder: 'users/456',
+  sourcePath: "users/123/abc/photo.jpg",
+  destinationFolder: "users/456",
 });
 ```
 
@@ -253,8 +521,8 @@ Create a copy of a file.
 
 ```typescript
 await fm.duplicate({
-  sourcePath: 'users/123/abc/photo.jpg',
-  newFilename: 'photo-copy.jpg', // Optional
+  sourcePath: "users/123/abc/photo.jpg",
+  newFilename: "photo-copy.jpg", // Optional
 });
 ```
 
@@ -264,7 +532,7 @@ Update a file (creates new version if versioning is enabled).
 
 ```typescript
 await fm.update({
-  filePath: 'users/123/abc/photo.jpg',
+  filePath: "users/123/abc/photo.jpg",
   newFile: newBuffer,
 });
 ```
@@ -274,7 +542,7 @@ await fm.update({
 Get detailed information about a file.
 
 ```typescript
-const info = await fm.getFileInfo('users/123/abc/photo.jpg');
+const info = await fm.getFileInfo("users/123/abc/photo.jpg");
 console.log(info.size, info.mimeType, info.metadata);
 ```
 
@@ -285,7 +553,7 @@ console.log(info.size, info.mimeType, info.metadata);
 List all files in a folder.
 
 ```typescript
-const result = await fm.listFiles('users/123');
+const result = await fm.listFiles("users/123");
 ```
 
 #### `listFolders(folderPath?: string): Promise<ListFoldersResult>`
@@ -293,7 +561,7 @@ const result = await fm.listFiles('users/123');
 List all subfolders in a folder.
 
 ```typescript
-const result = await fm.listFolders('users');
+const result = await fm.listFolders("users");
 ```
 
 ### Versioning Operations
@@ -303,7 +571,7 @@ const result = await fm.listFolders('users');
 Get all versions of a file.
 
 ```typescript
-const versions = await fm.getVersions('users/123/abc/photo.jpg');
+const versions = await fm.getVersions("users/123/abc/photo.jpg");
 ```
 
 #### `restoreVersion(options: RestoreVersionOptions): Promise<RestoreResult>`
@@ -312,7 +580,7 @@ Restore a previous version of a file.
 
 ```typescript
 await fm.restoreVersion({
-  filePath: 'users/123/abc/photo.jpg',
+  filePath: "users/123/abc/photo.jpg",
   versionTimestamp: 1234567890,
 });
 ```
@@ -325,9 +593,9 @@ Create a ZIP archive from files.
 
 ```typescript
 const zipResult = await fm.zipFiles({
-  files: ['file1.jpg', 'file2.pdf'],
-  zipName: 'archive.zip',
-  outputPath: 'downloads',
+  files: ["file1.jpg", "file2.pdf"],
+  zipName: "archive.zip",
+  outputPath: "downloads",
 });
 ```
 
@@ -337,8 +605,8 @@ Create a ZIP archive from an entire folder.
 
 ```typescript
 const zipResult = await fm.zipFolder({
-  folderPath: 'users/123',
-  zipName: 'user-files.zip',
+  folderPath: "users/123",
+  zipName: "user-files.zip",
 });
 ```
 
@@ -353,19 +621,19 @@ import {
   PermissionError,
   StorageError,
   OperationError,
-} from 'manas-fm/errors';
+} from "manas-fm/errors";
 
 try {
-  await fm.upload({ file: buffer, filename: 'test.jpg' });
+  await fm.upload({ file: buffer, filename: "test.jpg" });
 } catch (error) {
   if (error instanceof ValidationError) {
-    console.error('Validation failed:', error.message);
+    console.error("Validation failed:", error.message);
   } else if (error instanceof FileNotFoundError) {
-    console.error('File not found:', error.message);
+    console.error("File not found:", error.message);
   } else if (error instanceof PermissionError) {
-    console.error('Permission denied:', error.message);
+    console.error("Permission denied:", error.message);
   } else if (error instanceof StorageError) {
-    console.error('Storage error:', error.message);
+    console.error("Storage error:", error.message);
   }
 }
 ```
@@ -381,43 +649,47 @@ import type {
   UploadResult,
   FileInfo,
   FileMetadata,
-} from 'manas-fm';
+} from "manas-fm";
 ```
 
 ## Best Practices
 
 1. **Use Absolute Paths**: Always use absolute paths for `basePath` configuration
+
    ```typescript
-   import path from 'path';
+   import path from "path";
 
    const fm = createFileManager({
-     basePath: path.join(process.cwd(), 'storage'),
+     basePath: path.join(process.cwd(), "storage"),
    });
    ```
 
 2. **Enable Versioning for Critical Files**: Enable versioning for files that need history tracking
+
    ```typescript
    const fm = createFileManager({
-     basePath: './storage',
+     basePath: "./storage",
      enableVersioning: true,
      maxVersions: 10,
    });
    ```
 
 3. **Compress Images**: Enable compression for image-heavy applications
+
    ```typescript
    const fm = createFileManager({
-     basePath: './storage',
+     basePath: "./storage",
      enableCompression: true,
      compressionQuality: 85,
    });
    ```
 
 4. **Validate File Types**: Use `allowedExtensions` to restrict file types
+
    ```typescript
    const fm = createFileManager({
-     basePath: './storage',
-     allowedExtensions: ['.jpg', '.jpeg', '.png', '.pdf'],
+     basePath: "./storage",
+     allowedExtensions: [".jpg", ".jpeg", ".png", ".pdf"],
    });
    ```
 
@@ -433,6 +705,7 @@ import type {
 ## Example Application
 
 This repository includes a complete Next.js example application in the `example/` directory demonstrating:
+
 - File upload with drag-and-drop
 - File listing with metadata display
 - File operations (rename, delete, download)
@@ -524,6 +797,7 @@ npm publish
 ```
 
 This will:
+
 1. Run ESLint
 2. Run all tests
 3. Build the package
@@ -550,6 +824,7 @@ MIT © [M Anas Latif](https://m.anaslatif.dev)
 ## Author
 
 **M Anas Latif**
+
 - Website: [https://m.anaslatif.dev](https://m.anaslatif.dev)
 - Email: contact@anaslatif.com
 - GitHub: [@manasdevs](https://github.com/manasdevs)
@@ -557,6 +832,7 @@ MIT © [M Anas Latif](https://m.anaslatif.dev)
 ## Support
 
 If you encounter any issues or have questions:
+
 - Open an issue: [GitHub Issues](https://github.com/manasdevs/file-manager/issues)
 - Check the documentation above
 - Review the [example application](./example/)

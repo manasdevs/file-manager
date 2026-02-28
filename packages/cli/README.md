@@ -10,13 +10,14 @@ A beautiful, interactive CLI tool to quickly set up [manas-fm](https://github.co
 - 🎨 **Beautiful Interface** - Enhanced with ansi-styles for a premium terminal experience
 - 🔍 **Auto-Detection** - Automatically detects your project type, framework, and configuration
 - ⚙️ **Interactive Setup** - Guided prompts for easy configuration
+- ☁️ **Cloud Storage** - Choose from 12+ cloud providers (AWS S3, GCS, Azure, DigitalOcean, Backblaze, Wasabi, Cloudflare R2, MinIO, Oracle, IBM, Supabase, Firebase) or local filesystem
 - 📦 **Complete Integration** - Generates all necessary files and configurations
 - 🎯 **Framework Support** - Optimized for Next.js App Router with API routes and Server Actions
-- � **Upload Progress** - Optional `useUploadProgress()` hook with network + server-side progress tracking
-- �🚀 **Zero Config** - Works out of the box with sensible defaults
+- 📊 **Upload Progress** - Optional `useUploadProgress()` hook with network + server-side progress tracking
+- 🚀 **Zero Config** - Works out of the box with sensible defaults
 - 📁 **Smart Structure** - Creates organized storage directories with .gitkeep files
-- � **LLM Documentation** - Generates `docs/llms/manas-fm.llms.txt` for AI-assisted development
-- �🔧 **Package Manager Agnostic** - Supports npm, yarn, and pnpm
+- 📖 **LLM Documentation** - Generates `docs/llms/manas-fm.llms.txt` for AI-assisted development
+- 🔧 **Package Manager Agnostic** - Supports npm, yarn, and pnpm
 
 ## Quick Start
 
@@ -89,6 +90,21 @@ The CLI automates the entire setup process:
 Guides you through interactive prompts:
 
 - **Storage Path**: Where to store files (default: `./storage`)
+- **Storage Provider**: Choose between local filesystem or cloud providers:
+  - **Local** (default) - Store files on the local filesystem
+  - **AWS S3** - Amazon Simple Storage Service
+  - **Google Cloud Storage** - S3-compatible via GCS interoperability
+  - **Azure Blob Storage** - Microsoft Azure
+  - **DigitalOcean Spaces** - S3-compatible object storage
+  - **Backblaze B2** - Affordable cloud storage
+  - **Wasabi** - Hot cloud storage
+  - **Cloudflare R2** - Zero egress-fee storage
+  - **MinIO** - Self-hosted S3-compatible storage
+  - **Oracle Cloud** - Oracle Cloud Object Storage
+  - **IBM Cloud** - IBM Cloud Object Storage
+  - **Supabase** - S3-compatible storage layer
+  - **Firebase** - Firebase Cloud Storage
+- **Cloud Credentials**: Provider-specific prompts for bucket, region, connection strings, etc.
 - **Logging**: Enable/disable with configurable log levels
 - **Slugs**: Define file categories with preset options:
   - Images (JPEG, PNG, WebP, GIF)
@@ -103,19 +119,23 @@ Guides you through interactive prompts:
 
 ### 3. 📥 Installation
 
-Automatically installs `manas-fm` using your project's package manager.
+Automatically installs `manas-fm` using your project's package manager. For cloud providers, also installs the required SDK:
+
+- S3-compatible: `@aws-sdk/client-s3` + `@aws-sdk/lib-storage`
+- Azure: `@azure/storage-blob`
+- Firebase: `firebase-admin`
 
 ### 4. 📁 Storage Setup
 
-- Creates storage directory structure
-- Generates subdirectories for each slug
-- Adds `.gitkeep` files for version control
+- **Local**: Creates storage directory structure, generates subdirectories for each slug, adds `.gitkeep` files
+- **Cloud**: Generates a `.env.example` with placeholder credentials for your chosen provider
 
 ### 5. 🔧 Code Generation
 
 #### For Next.js Projects:
 
 **File Manager Configuration:**
+
 ```typescript
 // src/lib/file-manager.ts
 import { createNextFileManager } from "manas-fm/adapters/nextjs";
@@ -140,6 +160,7 @@ export async function getFileManager() {
 ```
 
 **API Route Handler** (optional):
+
 ```typescript
 // src/app/api/files/[...all]/route.ts
 import { getFileManager } from "@/lib/file-manager";
@@ -157,6 +178,7 @@ export async function POST(request: Request) {
 ```
 
 **Server Actions** (optional):
+
 ```typescript
 // src/app/actions.ts
 "use server";
@@ -174,6 +196,7 @@ export async function uploadFile(formData: FormData) {
 ```
 
 **Upload Progress Hook** (optional):
+
 ```typescript
 // src/app/use-upload-progress.ts
 import { useUploadProgress } from "./use-upload-progress";
@@ -199,6 +222,7 @@ function UploadForm() {
 ```
 
 The hook tracks progress at two levels:
+
 - **Network transfer (0–50%)**: Tracks bytes sent via XMLHttpRequest
 - **Server processing (50–100%)**: Reads streaming NDJSON progress from the API route (validating → writing → compressing → complete)
 
@@ -278,23 +302,23 @@ storage/
 
   🚀 Next Steps
   ────────────────────────────────────
-  
+
   1. Import and use the file manager:
      import { getFileManager } from "@/lib/file-manager";
      const fm = await getFileManager();
-  
+
   2. API routes are ready at /api/files/*
-  
+
   3. Server actions ready in app/actions.ts
-  
+
   4. Upload progress hook ready: useUploadProgress()
      import { useUploadProgress } from "./use-upload-progress";
      const { upload, percent, phase } = useUploadProgress();
-  
+
   5. Available slugs: images, documents, uploads
-  
+
   6. LLM docs at docs/llms/manas-fm.llms.txt
-  
+
   7. Read the docs: https://github.com/manasdevs/file-manager#readme
 
 ```
@@ -304,26 +328,31 @@ storage/
 The CLI includes preset configurations for common use cases:
 
 ### Images
+
 - **Types**: JPEG, PNG, WebP, GIF
 - **Max Size**: 10 MB
 - **Compression**: Enabled (WebP, 75% quality)
 
 ### Documents
+
 - **Types**: PDF, TXT, JSON, DOC, DOCX
 - **Max Size**: 25 MB
 - **Zip Support**: Enabled
 - **Retention**: 90 days
 
 ### Uploads
+
 - **Types**: All files
 - **Max Size**: 50 MB
 
 ### Avatars
+
 - **Types**: JPEG, PNG, WebP
 - **Max Size**: 5 MB
 - **Compression**: Enabled (WebP, 80% quality)
 
 ### Videos
+
 - **Types**: MP4, WebM, MOV
 - **Max Size**: 100 MB
 
@@ -349,6 +378,7 @@ MIT © [M Anas Latif](https://m.anaslatif.dev)
 ## Author
 
 **M Anas Latif**
+
 - Website: [https://m.anaslatif.dev](https://m.anaslatif.dev)
 - Email: contact@anaslatif.com
 - GitHub: [@manasdevs](https://github.com/manasdevs)

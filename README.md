@@ -8,7 +8,7 @@ A powerful, configuration-first file management package for Node.js and Next.js 
 
 ## Overview
 
-manas-fm provides a comprehensive solution for file management in Node.js and Next.js applications with features like uploads, downloads, versioning, compression, and more.
+manas-fm provides a comprehensive solution for file management in Node.js and Next.js applications with features like uploads, downloads, versioning, compression, and more. Supports local filesystem and **12+ cloud storage providers** including AWS S3, GCS, Azure Blob, DigitalOcean Spaces, Backblaze B2, Wasabi, Cloudflare R2, MinIO, Oracle, IBM, Supabase, and Firebase Storage.
 
 ## Repository Structure
 
@@ -42,18 +42,46 @@ npm install manas-fm
 ### Basic Usage
 
 ```typescript
-import { createFileManager } from 'manas-fm';
+import { createFileManager } from "manas-fm";
 
 const fm = createFileManager({
-  basePath: './storage',
+  basePath: "./storage",
   enableVersioning: true,
   enableCompression: true,
 });
 
 const result = await fm.upload({
   file: buffer,
-  filename: 'document.pdf',
-  path: 'uploads',
+  filename: "document.pdf",
+  path: "uploads",
+});
+```
+
+### Cloud Storage
+
+```typescript
+import { createFileManager } from "manas-fm";
+
+// AWS S3 example (works with any S3-compatible provider)
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "aws", // or 'gcs', 'digitalocean-spaces', 'backblaze', 'wasabi', etc.
+    bucket: "my-bucket",
+    region: "us-east-1",
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!,
+    },
+  },
+});
+
+// Same API as local — upload, download, delete, etc.
+const result = await fm.upload({
+  file: buffer,
+  filename: "photo.jpg",
+  path: "images",
 });
 ```
 
@@ -66,6 +94,7 @@ manas-fm comes with a beautiful, interactive CLI tool to help you quickly set up
 - 🎨 **Beautiful Interface** - Enhanced with ansi-styles for a premium terminal experience
 - 🔍 **Auto-Detection** - Automatically detects your project type, framework, and configuration
 - ⚙️ **Interactive Setup** - Guided prompts for easy configuration
+- ☁️ **Cloud Storage** - Choose from 12+ cloud providers or local filesystem
 - 📦 **Complete Integration** - Generates all necessary files and configurations
 - 🎯 **Framework Support** - Optimized for Next.js App Router with API routes and Server Actions
 
@@ -78,6 +107,7 @@ npx add-manas-fm@latest
 ```
 
 The CLI will:
+
 1. 📦 Detect your project framework and structure
 2. ⚙️ Guide you through configuration options
 3. 📥 Install the manas-fm package
@@ -169,19 +199,20 @@ During setup, you'll be asked about:
 
   🚀 Next Steps
   ────────────────────────────────────
-  
+
   1. Import and use the file manager:
      import { getFileManager } from "@/lib/file-manager";
      const fm = await getFileManager();
-  
+
   2. Available slugs: images, documents, uploads
-  
+
   3. Read the docs: https://github.com/manasdevs/file-manager#readme
 ```
 
 ## Documentation
 
 For complete API documentation, configuration options, and guides, see:
+
 - [Package Documentation](./packages/manas-fm/README.md) - Full API reference and usage guide
 - [Example Application](./example/) - Complete Next.js implementation
 
@@ -247,6 +278,7 @@ pnpm example:dev
 ```
 
 Open http://localhost:3000 to see the example application with:
+
 - File upload with drag-and-drop
 - File management operations
 - Professional UI
@@ -259,9 +291,11 @@ Open http://localhost:3000 to see the example application with:
 This repository uses GitHub Actions to automatically publish to npm when you create a release:
 
 1. **Setup npm Token** (one-time):
+
    ```bash
    npm token create --type=automation
    ```
+
    Add the token as `NPM_TOKEN` in GitHub repository secrets.
 
 2. **Create a Release**:
@@ -287,6 +321,7 @@ The `prepublishOnly` hook will automatically run tests, linting, and build.
 ### Continuous Integration
 
 CI runs automatically on:
+
 - Push to `main` or `develop` branches
 - Pull requests
 
@@ -311,6 +346,7 @@ MIT © [M Anas Latif](https://m.anaslatif.dev)
 ## Author
 
 **M Anas Latif**
+
 - Website: [https://m.anaslatif.dev](https://m.anaslatif.dev)
 - Email: contact@anaslatif.com
 - GitHub: [@manasdevs](https://github.com/manasdevs)

@@ -18,6 +18,10 @@ The factory function `createFileManager(config)` returns a `FileManager` instanc
 npm install manas-fm
 # For image compression support:
 npm install sharp
+# For cloud storage (install the SDK for your provider):
+npm install @aws-sdk/client-s3 @aws-sdk/lib-storage  # S3-compatible (AWS, GCS, DO Spaces, etc.)
+npm install @azure/storage-blob                       # Azure Blob Storage
+npm install firebase-admin                            # Firebase Storage
 ```
 
 ## Configuration
@@ -98,6 +102,65 @@ const config: ManasFmConfig = {
 
 const fm = await createFileManager(config);
 ```
+
+### Cloud Storage
+
+manas-fm supports local filesystem (default) and cloud object storage. Add a `storage` field to `ManasFmConfig`:
+
+```typescript
+// S3-compatible (AWS, GCS, DigitalOcean Spaces, Backblaze B2, Wasabi, Cloudflare R2, MinIO, Oracle, IBM, Supabase)
+const fm = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "s3",
+    s3Provider: "aws",        // "aws" | "gcs" | "digitalocean-spaces" | "backblaze" | "wasabi" | "cloudflare" | "minio" | "oracle" | "ibm" | "supabase" | "custom-s3"
+    bucket: "my-bucket",
+    region: "us-east-1",
+    credentials: { accessKeyId: "...", secretAccessKey: "..." },
+    endpoint: "...",          // optional custom endpoint
+    prefix: "uploads/",      // optional key prefix
+    forcePathStyle: false,    // required for MinIO etc.
+  },
+  slugs: { /* ... */ },
+});
+
+// Azure Blob Storage
+const fm2 = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "azure",
+    container: "my-container",
+    connectionString: "DefaultEndpointsProtocol=https;...",
+    prefix: "uploads/",      // optional
+  },
+  slugs: { /* ... */ },
+});
+
+// Firebase Storage (requires firebase-admin to be initialized first)
+const fm3 = await createFileManager({
+  basePath: "uploads",
+  storage: {
+    provider: "firebase",
+    bucket: "my-project.appspot.com",
+    prefix: "uploads/",      // optional
+  },
+  slugs: { /* ... */ },
+});
+
+// Custom adapter (implement StorageAdapter interface)
+const fm4 = await createFileManager({
+  basePath: "uploads",
+  storage: { provider: "custom", adapter: myCustomAdapter },
+  slugs: { /* ... */ },
+});
+```
+
+The `StorageAdapter` interface has these methods:
+- `writeFile(key, data)`, `readFile(key)`, `deleteFile(key)`
+- `copyFile(src, dest)`, `moveFile(src, dest)`
+- `fileExists(key)`, `getFileStats(key)`
+- `listFiles(prefix)`, `listDirectories(prefix)`
+- `ensureDirectory(prefix)`, `createWriteStream(key)`, `getFileUrl(key)`
 
 ### SlugConfig fields
 
