@@ -52,14 +52,40 @@
     "typescript",
     "file-system",
     "versioning",
-    "compression"
+    "compression",
+    "cloud-storage",
+    "s3",
+    "azure-blob",
+    "gcs",
+    "firebase-storage",
+    "digitalocean-spaces",
+    "backblaze-b2",
+    "wasabi",
+    "minio",
+    "cloudflare-r2"
   ],
   "license": "MIT",
   "peerDependencies": {
-    "sharp": ">=0.33.0"
+    "sharp": ">=0.33.0",
+    "@aws-sdk/client-s3": ">=3.0.0",
+    "@aws-sdk/lib-storage": ">=3.0.0",
+    "@azure/storage-blob": ">=12.0.0",
+    "firebase-admin": ">=11.0.0"
   },
   "peerDependenciesMeta": {
     "sharp": {
+      "optional": true
+    },
+    "@aws-sdk/client-s3": {
+      "optional": true
+    },
+    "@aws-sdk/lib-storage": {
+      "optional": true
+    },
+    "@azure/storage-blob": {
+      "optional": true
+    },
+    "firebase-admin": {
       "optional": true
     }
   },

@@ -19,12 +19,13 @@ import type {
   OperationResult,
 } from "./types/results.js";
 import type { OperationContext } from "./types/internal.js";
+import type { StorageAdapter } from "./adapters/storage-adapter.js";
 import { validateConfig } from "./core/config-validator.js";
 import { PathResolver } from "./core/path-resolver.js";
 import { MetadataManager } from "./core/metadata-manager.js";
 import { CleanupManager } from "./core/cleanup-manager.js";
 import { Logger } from "./core/logger.js";
-import { ensureDirectory } from "./core/fs-utils.js";
+import { LocalStorageAdapter } from "./adapters/local.js";
 import { createUploadFile } from "./operations/upload.js";
 import { createDownloadFile } from "./operations/download.js";
 import { createListFiles } from "./operations/list-files.js";
@@ -95,14 +96,23 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
   // Validate and resolve config
   const validatedConfig = await validateConfig(config);
 
+  // Create the storage adapter
+  const storage = await createStorageAdapter(validatedConfig.storage, validatedConfig.basePath);
+
   // Create core services
   const logger = new Logger({
     ...validatedConfig.logging,
     basePath: validatedConfig.basePath,
   });
   const pathResolver = new PathResolver(validatedConfig);
-  const metadataManager = new MetadataManager(pathResolver, logger);
-  const cleanupManager = new CleanupManager(validatedConfig, metadataManager, pathResolver, logger);
+  const metadataManager = new MetadataManager(pathResolver, logger, storage);
+  const cleanupManager = new CleanupManager(
+    validatedConfig,
+    metadataManager,
+    pathResolver,
+    logger,
+    storage,
+  );
 
   // Create shared context
   const ctx: OperationContext = {
@@ -111,19 +121,21 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
     metadataManager,
     cleanupManager,
     logger,
+    storage,
   };
 
-  // Ensure base directory exists
-  await ensureDirectory(validatedConfig.basePath);
+  // Ensure base directory / prefix exists
+  await storage.ensureDirectory(validatedConfig.basePath);
 
   // Ensure all slug directories exist
   for (const slugConfig of Object.values(validatedConfig.slugs)) {
-    await ensureDirectory(slugConfig.path);
+    await storage.ensureDirectory(slugConfig.path);
   }
 
   logger.info("File manager initialized", {
     basePath: validatedConfig.basePath,
     slugCount: Object.keys(validatedConfig.slugs).length,
+    storageType: storage.type,
   });
 
   return {
@@ -140,4 +152,40 @@ export async function createFileManager(config: ManasFmConfig): Promise<FileMana
     listVersions: createListVersions(ctx),
     restoreVersion: createRestoreVersion(ctx),
   };
+}
+
+/**
+ * Create the appropriate StorageAdapter based on the validated storage config.
+ * Cloud adapters use dynamic imports so their SDKs are optional peer dependencies.
+ */
+async function createStorageAdapter(
+  storageConfig: import("./types/config.js").ValidatedStorageConfig,
+  basePath: string,
+): Promise<StorageAdapter> {
+  const cfg = storageConfig.config;
+  switch (cfg.provider) {
+    case "local":
+      return new LocalStorageAdapter(basePath);
+
+    case "s3": {
+      const { S3StorageAdapter } = await import("./adapters/s3.js");
+      return new S3StorageAdapter(cfg);
+    }
+
+    case "azure": {
+      const { AzureBlobStorageAdapter } = await import("./adapters/azure.js");
+      return new AzureBlobStorageAdapter(cfg);
+    }
+
+    case "firebase": {
+      const { FirebaseStorageAdapter } = await import("./adapters/firebase.js");
+      return new FirebaseStorageAdapter(cfg);
+    }
+
+    case "custom":
+      return cfg.adapter;
+
+    default:
+      return new LocalStorageAdapter(basePath);
+  }
 }
